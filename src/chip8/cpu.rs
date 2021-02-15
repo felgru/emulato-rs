@@ -177,6 +177,25 @@ impl CPU {
                 // eprintln!("draw {:X} {:X} = {:#X?} ({})", x, y, sprite, n);
                 self.registers[0xF] = display.draw_sprite(x, y, sprite);
             }
+            0xE000 => {
+                let x = ((opcode & 0x0F00) >> 8) as u8;
+                let nn = opcode as u8;
+                match nn {
+                    0x9E => {
+                        if display.is_key_pressed(self.registers[x]) {
+                            *pc += 2;
+                        }
+                    }
+                    0xA1 => {
+                        if !display.is_key_pressed(self.registers[x]) {
+                            *pc += 2;
+                        }
+                    }
+                    _ => {
+                        panic!("Unknown opcode: {:X}", opcode);
+                    }
+                }
+            }
             0xF000 => {
                 let x = ((opcode & 0x0F00) >> 8) as u8;
                 match opcode & 0x00FF {
