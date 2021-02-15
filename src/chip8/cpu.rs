@@ -1,5 +1,9 @@
 use std::fmt;
 use std::ops::{Index, IndexMut};
+
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha20Rng;
+
 use super::display::Display;
 use super::memory::Memory;
 
@@ -9,6 +13,7 @@ pub struct CPU {
     stack: Vec<u16>,
     delay_timer: u8,
     sound_timer: u8,
+    rng: ChaCha20Rng,
 }
 
 impl Default for CPU {
@@ -19,6 +24,7 @@ impl Default for CPU {
             stack: Vec::new(),
             delay_timer: 0,
             sound_timer: 0,
+            rng: ChaCha20Rng::seed_from_u64(42),
         }
     }
 }
@@ -155,6 +161,11 @@ impl CPU {
             0xB000 => {
                 let nnn = opcode & 0xFFF;
                 *pc = nnn + self.registers[0] as u16;
+            }
+            0xC000 => {
+                let x = ((opcode & 0x0F00) >> 8) as u8;
+                let nn = opcode as u8;
+                self.registers[x] = self.rng.gen::<u8>() & nn;
             }
             0xD000 => {
                 let x = ((opcode & 0x0F00) >> 8) as u8;

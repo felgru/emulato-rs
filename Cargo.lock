@@ -152,6 +152,8 @@ name = "emulato-rs"
 version = "0.1.0"
 dependencies = [
  "minifb",
+ "rand",
+ "rand_chacha",
 ]
 
 [[package]]
