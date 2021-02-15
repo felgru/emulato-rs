@@ -239,7 +239,7 @@ impl CPU {
                     }
                     0x0055 => {
                         let mut i = self.registers.read_i();
-                        for r in 0..x+1 {
+                        for r in 0..=x {
                             memory[i] = self.registers[r];
                             i += 1;
                         }
@@ -247,7 +247,7 @@ impl CPU {
                     }
                     0x0065 => {
                         let mut i = self.registers.read_i();
-                        for r in 0..x+1 {
+                        for r in 0..=x {
                             self.registers[r] = memory[i];
                             i += 1;
                         }
