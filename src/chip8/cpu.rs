@@ -123,7 +123,10 @@ impl CPU {
                         self.registers[0xF] = !carry as u8;
                     }
                     0x0006 => {
-                        // TODO: What is the expected behavior when X, Y = F?
+                        if x == 0xF || y == 0xF {
+                            panic!("{:0>3X}: bitshift with VF not implemented.",
+                                   *pc)
+                        }
                         self.registers[0xF] = y & 1;
                         self.registers[x] = y >> 1;
                     }
@@ -134,7 +137,10 @@ impl CPU {
                         self.registers[0xF] = !carry as u8;
                     }
                     0x000E => {
-                        // TODO: What is the expected behavior when X, Y = F?
+                        if x == 0xF || y == 0xF {
+                            panic!("{:0>3X}: bitshift with VF not implemented.",
+                                   *pc)
+                        }
                         self.registers[0xF] = (y & (1 << 7) != 0) as u8;
                         self.registers[x] = y << 1;
                     }
