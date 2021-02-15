@@ -112,6 +112,10 @@ impl Display {
         self.window.is_key_down(key)
     }
 
+    pub fn is_esc_pressed(&self) -> bool {
+        self.window.is_key_down(Key::Escape)
+    }
+
     pub fn get_key_press(&self) -> Option<u8> {
         let window = &self.window;
         for key in 0x0..=0xF {

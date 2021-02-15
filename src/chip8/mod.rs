@@ -36,6 +36,9 @@ impl Chip8 {
             }
             self.cpu.decrement_timers();
             self.display.refresh();
+            if self.display.is_esc_pressed() {
+                break;
+            }
         }
     }
 }
