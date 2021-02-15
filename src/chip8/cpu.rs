@@ -180,9 +180,27 @@ impl CPU {
             0xF000 => {
                 let x = ((opcode & 0x0F00) >> 8) as u8;
                 match opcode & 0x00FF {
+                    0x000A => {
+                        let key = display.get_key_press();
+                        if let Some(key) = key {
+                            self.registers[x] = key;
+                        } else {
+                            *pc -= 2;
+                        }
+                    }
                     0x001E => {
                         let i = self.registers.read_i();
                         self.registers.write_i(i + self.registers[x] as u16);
+                    }
+                    0x0029 => {
+                        let vx = self.registers[x];
+                        if vx > 0xF {
+                            panic!(
+                                "{:0>3X} {:0>4X}: V{:X} = {:X} out of bounds.",
+                                *pc - 2, opcode, x, vx);
+                        }
+                        let i = memory.font_sprite_address(vx);
+                        self.registers.write_i(i);
                     }
                     0x0033 => {
                         let i = self.registers.read_i();

@@ -3,12 +3,15 @@ use std::io::Read;
 use std::fs::File;
 use std::ops::{Index, IndexMut};
 
+const FONT_OFFSET: usize = 0x50;
+
 pub struct Memory([u8; 4096]);
 
 impl Default for Memory {
     fn default() -> Self {
         let mut memory = [0u8; 4096];
-        memory[0x50..0x50 + 16 * 5].copy_from_slice(&FONT_SPRITES);
+        memory[FONT_OFFSET..FONT_OFFSET + 16 * 5]
+            .copy_from_slice(&FONT_SPRITES);
         Self(memory)
     }
 }
@@ -24,6 +27,10 @@ impl Memory {
         let a = from as usize;
         let b = a + for_ as usize;
         &self.0[a..b]
+    }
+
+    pub fn font_sprite_address(&self, character: u8) -> u16 {
+        FONT_OFFSET as u16 + character as u16 * 5
     }
 }
 
@@ -51,7 +58,7 @@ const FONT_SPRITES: [u8; 16 * 5] = [
     // 3
     0xF0, 0x10, 0xF0, 0x10, 0xF0,
     // 4
-    0x90, 0x00, 0xF0, 0x10, 0x10,
+    0x90, 0x90, 0xF0, 0x10, 0x10,
     // 5
     0xF0, 0x80, 0xF0, 0x10, 0xF0,
     // 6

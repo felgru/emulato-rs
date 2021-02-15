@@ -71,6 +71,7 @@ impl Display {
     }
 
     pub fn draw_sprite(&mut self, x: u8, y: u8, sprite: &[u8]) -> u8 {
+        // eprint!("({:#X?}, {:#X?})\n{}", x, y, format_sprite(sprite));
         let x = x as usize;
         let y = y as usize;
         let lines = sprite.len();
@@ -87,6 +88,54 @@ impl Display {
         }
         any_set_pixel_unset as u8
     }
+
+    pub fn is_key_pressed(&self, key: u8) -> bool {
+        let key = match key {
+            0x0 => Key::Key0,
+            0x1 => Key::Key1,
+            0x2 => Key::Key2,
+            0x3 => Key::Key3,
+            0x4 => Key::Key4,
+            0x5 => Key::Key5,
+            0x6 => Key::Key6,
+            0x7 => Key::Key7,
+            0x8 => Key::Key8,
+            0x9 => Key::Key9,
+            0xA => Key::A,
+            0xB => Key::B,
+            0xC => Key::C,
+            0xD => Key::D,
+            0xE => Key::E,
+            0xF => Key::F,
+            k => panic!("{:#X?} is not a valid key.", k),
+        };
+        self.window.is_key_down(key)
+    }
+
+    pub fn get_key_press(&self) -> Option<u8> {
+        let window = &self.window;
+        for key in 0x0..=0xF {
+            if self.is_key_pressed(key) {
+                return Some(key);
+            }
+        }
+        None
+    }
+}
+
+pub fn format_sprite(sprite: &[u8]) -> String {
+    let mut res = String::with_capacity(sprite.len() * 9);
+    for line in sprite.iter() {
+        for i in 0..8 {
+            res.push(if *line & (1 << 7 -i) != 0 {
+                '*'
+            } else {
+                ' '
+            });
+        }
+        res.push('\n');
+    }
+    res
 }
 
 impl fmt::Display for Display {
