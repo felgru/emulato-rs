@@ -135,7 +135,7 @@ impl CPU {
                     }
                     0x000E => {
                         // TODO: What is the expected behavior when X, Y = F?
-                        self.registers[0xF] = y & (1 << 7);
+                        self.registers[0xF] = (y & (1 << 7) != 0) as u8;
                         self.registers[x] = y << 1;
                     }
                     _ => {
