@@ -27,7 +27,7 @@ impl Display {
             WindowOptions::default(),
         ).unwrap();
         use std::time::Duration;
-        let wait_time = Duration::from_micros((1000. / refresh_rate as f64)
+        let wait_time = Duration::from_micros((1000000. / refresh_rate as f64)
                                               as u64);
         window.limit_update_rate(Some(wait_time));
         Self{

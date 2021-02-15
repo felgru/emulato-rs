@@ -188,6 +188,12 @@ impl CPU {
                             *pc -= 2;
                         }
                     }
+                    0x0007 => {
+                        self.registers[x] = self.delay_timer;
+                    }
+                    0x0015 => {
+                        self.delay_timer = self.registers[x];
+                    }
                     0x001E => {
                         let i = self.registers.read_i();
                         self.registers.write_i(i + self.registers[x] as u16);
@@ -234,6 +240,15 @@ impl CPU {
                 }
             }
             _ => panic!("Unknown opcode: {:X}", opcode),
+        }
+    }
+
+    pub fn decrement_timers(&mut self) {
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
         }
     }
 }

@@ -12,7 +12,7 @@ pub struct Chip8 {
 }
 
 const FRAMERATE:  usize = 60;
-const CPU_CYCLES_PER_FRAME:  usize = 1;
+const CPU_CYCLES_PER_FRAME:  usize = 10;
 
 impl Chip8 {
     pub fn new() -> Self {
@@ -34,6 +34,7 @@ impl Chip8 {
             for _ in 0..CPU_CYCLES_PER_FRAME {
                 self.cpu.tick(&mut self.memory, &mut self.display);
             }
+            self.cpu.decrement_timers();
             self.display.refresh();
         }
     }
