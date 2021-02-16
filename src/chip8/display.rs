@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::fmt;
 use minifb::{Key, Window, WindowOptions};
 
@@ -77,10 +78,11 @@ impl Display {
         // eprint!("({:#X?}, {:#X?})\n{}", x, y, format_sprite(sprite));
         let x = x as usize;
         let y = y as usize;
-        let lines = sprite.len();
+        let lines = min(sprite.len(), self.height - y);
+        let sprite_width = min(8, self.width - x);
         let mut any_set_pixel_unset = false;
         for i in 0..lines {
-            for j in 0..8 {
+            for j in 0..sprite_width {
                 let sprite_set = sprite[i] & (1 << 7 - j) != 0;
                 let pixel = &mut self.pixels[(y+i) * self.width + x + j];
                 *pixel ^= sprite_set;
