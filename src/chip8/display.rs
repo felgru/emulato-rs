@@ -117,7 +117,6 @@ impl Display {
     }
 
     pub fn get_key_press(&self) -> Option<u8> {
-        let window = &self.window;
         for key in 0x0..=0xF {
             if self.is_key_pressed(key) {
                 return Some(key);
