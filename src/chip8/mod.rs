@@ -15,9 +15,21 @@ const FRAMERATE:  usize = 60;
 const CPU_CYCLES_PER_FRAME:  usize = 10;
 
 impl Chip8 {
-    pub fn new() -> Self {
+    pub const AVAILABLE_DISPLAY_SIZES: [&'static str; 3] = [
+        "64x32",  //< CHIP-8
+        "128x64",  //< CHIP-10
+        "64x128",  //< HI-RES CHIP-8
+    ];
+
+    pub fn new(display_size: &str) -> Self {
+        let (width, height) = match display_size {
+            "64x32" => (64, 32),
+            "128x64" => (128, 64),
+            "64x128" => (64, 128),
+            _ => panic!("Unexpected Chip8 display size: {}", display_size),
+        };
         let memory =  memory::Memory::default();
-        let display = display::Display::with_refresh_rate(FRAMERATE);
+        let display = display::Display::new(width, height, FRAMERATE);
         Self {
             cpu: cpu::CPU::default(),
             memory,
