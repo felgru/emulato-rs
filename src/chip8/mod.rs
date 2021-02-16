@@ -1,5 +1,6 @@
 pub mod cpu;
 pub mod display;
+pub mod fonts;
 pub mod memory;
 
 use std::io;

@@ -3,6 +3,8 @@ use std::io::Read;
 use std::fs::File;
 use std::ops::{Index, IndexMut};
 
+use super::fonts::CHIP8_FONT;
+
 const FONT_OFFSET: usize = 0x50;
 
 pub struct Memory([u8; 4096]);
@@ -10,13 +12,18 @@ pub struct Memory([u8; 4096]);
 impl Default for Memory {
     fn default() -> Self {
         let mut memory = [0u8; 4096];
-        memory[FONT_OFFSET..FONT_OFFSET + 16 * 5]
-            .copy_from_slice(&FONT_SPRITES);
+        memory[FONT_OFFSET..FONT_OFFSET + 16 * 5].copy_from_slice(&CHIP8_FONT);
         Self(memory)
     }
 }
 
 impl Memory {
+    fn with_font(font: &[u8; 16 * 5]) -> Self {
+        let mut memory = [0u8; 4096];
+        memory[FONT_OFFSET..FONT_OFFSET + 16 * 5].copy_from_slice(font);
+        Self(memory)
+    }
+
     pub fn load_program_from_file(&mut self, mut f: File) -> io::Result<()> {
         let program_start_address = 0x200;
         f.read(&mut self.0[program_start_address..])?;
@@ -47,38 +54,3 @@ impl IndexMut<u16> for Memory {
         &mut self.0[index as usize]
     }
 }
-
-const FONT_SPRITES: [u8; 16 * 5] = [
-    // 0
-    0xF0, 0x90, 0x90, 0x90, 0xF0,
-    // 1
-    0x20, 0x60, 0x20, 0x20, 0x70,
-    // 2
-    0xF0, 0x10, 0xF0, 0x80, 0xF0,
-    // 3
-    0xF0, 0x10, 0xF0, 0x10, 0xF0,
-    // 4
-    0x90, 0x90, 0xF0, 0x10, 0x10,
-    // 5
-    0xF0, 0x80, 0xF0, 0x10, 0xF0,
-    // 6
-    0xF0, 0x80, 0xF0, 0x90, 0xF0,
-    // 7
-    0xF0, 0x10, 0x20, 0x40, 0x40,
-    // 8
-    0xF0, 0x90, 0xF0, 0x90, 0xF0,
-    // 9
-    0xF0, 0x90, 0xF0, 0x10, 0xF0,
-    // A
-    0xF0, 0x90, 0xF0, 0x90, 0x90,
-    // B
-    0xE0, 0x90, 0xE0, 0x90, 0xE0,
-    // C
-    0xF0, 0x80, 0x80, 0x80, 0xF0,
-    // D
-    0xE0, 0x90, 0x90, 0x90, 0xE0,
-    // E
-    0xF0, 0x80, 0xF0, 0x80, 0xF0,
-    // F
-    0xF0, 0x80, 0xF0, 0x80, 0x80,
-    ];
