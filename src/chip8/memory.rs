@@ -3,7 +3,7 @@ use std::io::Read;
 use std::fs::File;
 use std::ops::{Index, IndexMut};
 
-use super::fonts::CHIP8_FONT;
+use super::fonts::CHIP48_FONT;
 
 const FONT_OFFSET: usize = 0x50;
 
@@ -11,14 +11,12 @@ pub struct Memory([u8; 4096]);
 
 impl Default for Memory {
     fn default() -> Self {
-        let mut memory = [0u8; 4096];
-        memory[FONT_OFFSET..FONT_OFFSET + 16 * 5].copy_from_slice(&CHIP8_FONT);
-        Self(memory)
+        Self::with_font(&CHIP48_FONT)
     }
 }
 
 impl Memory {
-    fn with_font(font: &[u8; 16 * 5]) -> Self {
+    pub fn with_font(font: &[u8; 16 * 5]) -> Self {
         let mut memory = [0u8; 4096];
         memory[FONT_OFFSET..FONT_OFFSET + 16 * 5].copy_from_slice(font);
         Self(memory)

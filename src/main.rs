@@ -25,6 +25,14 @@ fn main() {
                     .long("display")
                     .default_value("64x32")
                     .possible_values(&chip8::Chip8::AVAILABLE_DISPLAY_SIZES)
+            )
+            .arg(
+                Arg::new("font")
+                    .about("font")
+                    .takes_value(true)
+                    .long("font")
+                    .default_value("chip48")
+                    .possible_values(&chip8::Chip8::AVAILABLE_FONTS)
             ),
         )
         .get_matches();
@@ -32,7 +40,8 @@ fn main() {
         Some("chip8") => {
             let subcommand = matches.subcommand_matches("chip8").unwrap();
             let display = subcommand.value_of("display").unwrap();
-            let mut chip8 = chip8::Chip8::new(display);
+            let font = subcommand.value_of("font").unwrap();
+            let mut chip8 = chip8::Chip8::new(display, font);
             let filename = subcommand.value_of("rom-file").unwrap();
             println!("loading {}", filename);
             let f = File::open(filename).unwrap();

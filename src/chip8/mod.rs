@@ -22,14 +22,30 @@ impl Chip8 {
         "64x128",  //< HI-RES CHIP-8
     ];
 
-    pub fn new(display_size: &str) -> Self {
+    pub const AVAILABLE_FONTS: [&'static str; 5] = [
+        "chip48",
+        "cosmacvip",
+        "dream6800",
+        "eti660",
+        "fishnchips",
+    ];
+
+    pub fn new(display_size: &str, font: &str) -> Self {
         let (width, height) = match display_size {
             "64x32" => (64, 32),
             "128x64" => (128, 64),
             "64x128" => (64, 128),
-            _ => panic!("Unexpected Chip8 display size: {}", display_size),
+            _ => panic!("Unexpected CHIP-8 display size: {}", display_size),
         };
-        let memory =  memory::Memory::default();
+        let font = match font {
+            "chip48" => &fonts::CHIP48_FONT,
+            "cosmacvip" => &fonts::COSMAC_VIP_FONT,
+            "dream6800" => &fonts::DREAM6800_FONT,
+            "eti660" => &fonts::ETI660_FONT,
+            "fishnchips" => &fonts::FISH_N_CHIPS_FONT,
+            _ => panic!("Unknown CHIP-8 font: {}", font),
+        };
+        let memory = memory::Memory::with_font(font);
         let display = display::Display::new(width, height, FRAMERATE);
         Self {
             cpu: cpu::CPU::default(),
