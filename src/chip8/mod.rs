@@ -2,6 +2,7 @@ pub mod cpu;
 pub mod display;
 pub mod fonts;
 pub mod memory;
+pub mod commandline;
 
 use std::io;
 use std::fs::File;
