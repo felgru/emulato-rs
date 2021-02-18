@@ -33,7 +33,12 @@ fn main() {
                     .long("font")
                     .default_value("chip48")
                     .possible_values(&chip8::Chip8::AVAILABLE_FONTS)
-            ),
+            )
+            .arg(
+                Arg::new("shift-x")
+                    .about("shift VX instead of VY in 8XY6 and 8XYE (this is what S-CHIP and many other emulators do")
+                    .long("shift-x")
+            )
         )
         .get_matches();
     match matches.subcommand_name() {
@@ -41,7 +46,8 @@ fn main() {
             let subcommand = matches.subcommand_matches("chip8").unwrap();
             let display = subcommand.value_of("display").unwrap();
             let font = subcommand.value_of("font").unwrap();
-            let mut chip8 = chip8::Chip8::new(display, font);
+            let shift_x = subcommand.is_present("shift-x");
+            let mut chip8 = chip8::Chip8::new(display, font, shift_x);
             let filename = subcommand.value_of("rom-file").unwrap();
             println!("loading {}", filename);
             let f = File::open(filename).unwrap();

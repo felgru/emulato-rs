@@ -14,6 +14,7 @@ pub struct CPU {
     delay_timer: u8,
     sound_timer: u8,
     rng: ChaCha20Rng,
+    shift_x: bool,
 }
 
 impl Default for CPU {
@@ -25,11 +26,16 @@ impl Default for CPU {
             delay_timer: 0,
             sound_timer: 0,
             rng: ChaCha20Rng::seed_from_u64(42),
+            shift_x: false,
         }
     }
 }
 
 impl CPU {
+    pub fn activate_shift_quirk(&mut self) {
+        self.shift_x = true;
+    }
+
     pub fn tick(&mut self, memory: &mut Memory, display: &mut Display) {
         let pc = &mut self.pc;
         let opcode: u16 = ((memory[*pc] as u16) << 8) + memory[*pc + 1] as u16;
@@ -123,10 +129,15 @@ impl CPU {
                         self.registers[0xF] = !carry as u8;
                     }
                     0x0006 => {
-                        if x == 0xF || y == 0xF {
+                        if x == 0xF {
                             panic!("{:0>3X}: bitshift with VF not implemented.",
                                    *pc)
                         }
+                        let y = if self.shift_x {
+                            self.registers[x]
+                        } else {
+                            y
+                        };
                         self.registers[0xF] = y & 1;
                         self.registers[x] = y >> 1;
                     }
@@ -137,10 +148,15 @@ impl CPU {
                         self.registers[0xF] = !carry as u8;
                     }
                     0x000E => {
-                        if x == 0xF || y == 0xF {
+                        if x == 0xF {
                             panic!("{:0>3X}: bitshift with VF not implemented.",
                                    *pc)
                         }
+                        let y = if self.shift_x {
+                            self.registers[x]
+                        } else {
+                            y
+                        };
                         self.registers[0xF] = (y & (1 << 7) != 0) as u8;
                         self.registers[x] = y << 1;
                     }
@@ -177,6 +193,9 @@ impl CPU {
                 let x = ((opcode & 0x0F00) >> 8) as u8;
                 let y = ((opcode & 0x00F0) >> 4) as u8;
                 let n = (opcode & 0x000F) as u8;
+                if n == 0 {
+                    panic!("Unsupported S-CHIP opcode: {:X}", opcode);
+                };
                 let sprite = memory.read_slice(self.registers.i, n);
                 let x = self.registers[x];
                 let y = self.registers[y];

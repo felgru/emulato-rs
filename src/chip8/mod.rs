@@ -30,7 +30,7 @@ impl Chip8 {
         "fishnchips",
     ];
 
-    pub fn new(display_size: &str, font: &str) -> Self {
+    pub fn new(display_size: &str, font: &str, shift_x: bool) -> Self {
         let (width, height) = match display_size {
             "64x32" => (64, 32),
             "128x64" => (128, 64),
@@ -45,10 +45,14 @@ impl Chip8 {
             "fishnchips" => &fonts::FISH_N_CHIPS_FONT,
             _ => panic!("Unknown CHIP-8 font: {}", font),
         };
+        let mut cpu = cpu::CPU::default();
+        if shift_x {
+            cpu.activate_shift_quirk();
+        }
         let memory = memory::Memory::with_font(font);
         let display = display::Display::new(width, height, FRAMERATE);
         Self {
-            cpu: cpu::CPU::default(),
+            cpu,
             memory,
             display,
         }
