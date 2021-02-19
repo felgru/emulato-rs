@@ -238,6 +238,10 @@ impl CPU {
                     0x0015 => {
                         self.delay_timer = self.registers[x];
                     }
+                    0x0018 => {
+                        self.sound_timer = self.registers[x];
+                        // TODO: Start beep if sound_timer > 1.
+                    }
                     0x001E => {
                         let i = self.registers.read_i();
                         self.registers.write_i(i + self.registers[x] as u16);
