@@ -1,4 +1,4 @@
-use clap::{crate_name, crate_version, App, AppSettings, Arg};
+use clap::{crate_name, crate_version, App, AppSettings};
 
 use emulato_rs::chip8;
 
