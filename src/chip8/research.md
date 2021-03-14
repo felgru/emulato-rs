@@ -14,6 +14,7 @@
 ## S-CHIP
 
 * http://devernay.free.fr/hacks/chip8/schip.txt
+* https://github.com/JohnEarnest/Octo/blob/gh-pages/docs/SuperChip.md
 
 # Test ROMs
 
