@@ -341,13 +341,23 @@ impl CPU {
                 f = (f & !mask) | Flag::HalfCarry as u8;
                 self.registers.f = f;
             }
+            JP(condition) => {
+                let nn = self.memory.read16(self.pc + 1);
+                self.pc += 3;
+                if self.test_jump_condition(condition) {
+                    eprintln!("{:0>4X}: Absolute jump to {:0>4X}",
+                              self.pc - 3, nn);
+                    self.pc = nn;
+                }
+                eprintln!(" New PC: {:0>4X}", self.pc);
+            }
             JR(condition) => {
                 let e = self.memory.read8(self.pc + 1);
                 // TODO: is e to be interpreted as 2s complement?
                 let e = e as i8;
                 self.pc += 2;
                 if self.test_jump_condition(condition) {
-                    eprintln!("{:0>4X}: Relative jump by {:#}", self.pc, e);
+                    eprintln!("{:0>4X}: Relative jump by {:#}", self.pc-2, e);
                     self.pc = (self.pc as i16 + e as i16) as u16;
                 }
                 eprintln!(" New PC: {:0>4X}", self.pc);
@@ -858,6 +868,7 @@ enum Instruction {
     RL(NonDirectArithmeticOperand),
     RRA,
     RR(NonDirectArithmeticOperand),
+    JP(JumpCondition),
     JR(JumpCondition),
     CALL(JumpCondition),
     RET(JumpCondition),
@@ -1002,6 +1013,21 @@ impl Instruction {
             0xF5 => {
                 Some(Instruction::PUSH(U16Register::AF))
             }
+            0xC2 => {
+                Some(Instruction::JP(JumpCondition::NZ))
+            }
+            0xC3 => {
+                Some(Instruction::JP(JumpCondition::Unconditional))
+            }
+            0xCA => {
+                Some(Instruction::JP(JumpCondition::Z))
+            }
+            0xD2 => {
+                Some(Instruction::JP(JumpCondition::NC))
+            }
+            0xDA => {
+                Some(Instruction::JP(JumpCondition::C))
+            }
             0xCD => {
                 Some(Instruction::CALL(JumpCondition::Unconditional))
             }
@@ -1123,6 +1149,7 @@ impl Instruction {
             RL(_operand) => 2,
             RRA => 1,
             RR(_operand) => 2,
+            JP(_condition) => 3,
             JR(_condition) => 2,
             CALL(_condition) => 3,
             RET(_condition) => 1,
