@@ -283,6 +283,9 @@ impl CPU {
                 self.pc += 1;
                 let carry = self.registers.a & 0x80 != 0;
                 self.registers.a <<= 1;
+                if self.registers.f & Flag::Carry as u8 != 0 {
+                    self.registers.a += 1;
+                };
                 self.registers.f = if carry {
                     Flag::Carry as u8
                 } else {
@@ -294,6 +297,9 @@ impl CPU {
                 let mut v = self.load_non_direct_arithmetic_operand(memory, r);
                 let carry = v & 0x80 != 0;
                 v <<= 1;
+                if self.registers.f & Flag::Carry as u8 != 0 {
+                    v += 1;
+                };
                 self.write_non_direct_arithmetic_operand(memory, r, v);
                 let mut f = 0;
                 if v == 0 {
@@ -308,6 +314,9 @@ impl CPU {
                 self.pc += 1;
                 let carry = self.registers.a & 0x01 != 0;
                 self.registers.a >>= 1;
+                if self.registers.f & Flag::Carry as u8 != 0 {
+                    self.registers.a += 0x80;
+                };
                 self.registers.f = if carry {
                     Flag::Carry as u8
                 } else {
@@ -319,6 +328,9 @@ impl CPU {
                 let mut v = self.load_non_direct_arithmetic_operand(memory, r);
                 let carry = v & 0x01 != 0;
                 v >>= 1;
+                if self.registers.f & Flag::Carry as u8 != 0 {
+                    v += 0x80;
+                };
                 self.write_non_direct_arithmetic_operand(memory, r, v);
                 let mut f = 0;
                 if v == 0 {
