@@ -9,25 +9,23 @@ pub struct CPU {
     registers: Registers,
     sp: u16, //< stack pointer
     pc: u16, //< program counter
-    memory: MemoryBus,
 }
 
 impl CPU {
-    pub fn new(memory: MemoryBus) -> Self {
+    pub fn new() -> Self {
         Self{
             registers: Registers::new(),
             sp: 0xFFFE,
             pc: 0,
-            memory,
         }
     }
 
-    pub fn step(&mut self) {
+    pub fn step(&mut self, memory: &mut MemoryBus) {
         let instruction = {
-            let mut instruction_byte = self.memory.read8(self.pc);
+            let mut instruction_byte = memory.read8(self.pc);
             let prefixed = instruction_byte == 0xCB;
             if prefixed {
-                instruction_byte = self.memory.read8(self.pc + 1);
+                instruction_byte = memory.read8(self.pc + 1);
             }
             match Instruction::from_byte(instruction_byte, prefixed) {
                 Some(instruction) => instruction,
@@ -45,16 +43,16 @@ impl CPU {
         let mut instruction_bytes: u64 = 0;
         for i in self.pc..self.pc+instruction.len() {
             instruction_bytes <<= 8;
-            instruction_bytes += self.memory.read8(i) as u64;
+            instruction_bytes += memory.read8(i) as u64;
         }
         eprintln!("{}", self.registers);
         eprintln!("{:0>4X}: {1:0>2$X} {3:?}", self.pc, instruction_bytes,
                   2*instruction.len() as usize,
                   instruction);
-        self.execute(instruction)
+        self.execute(memory, instruction)
     }
 
-    fn execute(&mut self, instruction: Instruction) {
+    fn execute(&mut self, memory: &mut MemoryBus, instruction: Instruction) {
         use Instruction::*;
         match instruction {
             NOP => {
@@ -62,7 +60,7 @@ impl CPU {
             }
             ADD(operand) => {
                 self.pc += 1;
-                let operand = self.load_arithmetic_operand(operand);
+                let operand = self.load_arithmetic_operand(memory, operand);
                 let (new_a, carry) = self.registers.a.overflowing_add(operand);
                 self.registers.a = new_a;
                 let mut f = 0;
@@ -77,7 +75,7 @@ impl CPU {
             }
             SUB(operand) => {
                 self.pc += 1;
-                let operand = self.load_arithmetic_operand(operand);
+                let operand = self.load_arithmetic_operand(memory, operand);
                 let (new_a, carry) = self.registers.a.overflowing_sub(operand);
                 self.registers.a = new_a;
                 let mut f = Flag::Subtract as u8;
@@ -94,9 +92,11 @@ impl CPU {
                 self.pc += 1;
                 match inc_type {
                     IncDecType::IncDec8(operand) => {
-                        let value = self.load_non_direct_arithmetic_operand(operand);
+                        let value = self.load_non_direct_arithmetic_operand(
+                            memory, operand);
                         let (new, _carry) = value.overflowing_add(1);
-                        self.write_non_direct_arithmetic_operand(operand, new);
+                        self.write_non_direct_arithmetic_operand(memory,
+                                                                 operand, new);
                         let mut f = 0;
                         if new == 0 {
                             f |= Flag::Zero as u8;
@@ -118,9 +118,11 @@ impl CPU {
                 self.pc += 1;
                 match dec_type {
                     IncDecType::IncDec8(operand) => {
-                        let value = self.load_non_direct_arithmetic_operand(operand);
+                        let value = self.load_non_direct_arithmetic_operand(
+                            memory, operand);
                         let (new, _carry) = value.overflowing_sub(1);
-                        self.write_non_direct_arithmetic_operand(operand, new);
+                        self.write_non_direct_arithmetic_operand(memory,
+                                                                 operand, new);
                         let mut f = Flag::Subtract as u8;
                         if new == 0 {
                             f |= Flag::Zero as u8;
@@ -140,12 +142,12 @@ impl CPU {
             }
             XOR(operand) => {
                 self.pc += 1;
-                let operand = self.load_arithmetic_operand(operand);
+                let operand = self.load_arithmetic_operand(memory, operand);
                 self.registers.a ^= operand;
             }
             CP(operand) => {
                 self.pc += 1;
-                let operand = self.load_arithmetic_operand(operand);
+                let operand = self.load_arithmetic_operand(memory, operand);
                 let (cp, carry) = self.registers.a.overflowing_sub(operand);
                 let mut f = Flag::Subtract as u8;
                 if cp == 0 {
@@ -165,13 +167,13 @@ impl CPU {
                             self.registers.read8(reg)
                         }
                         LoadByteSource::D8 => {
-                            let d8 = self.memory.read8(self.pc);
+                            let d8 = memory.read8(self.pc);
                             self.pc += 1;
                             d8
                         }
                         LoadByteSource::HLI => {
                             let hl = self.registers.read16(U16Register::HL);
-                            self.memory.read8(hl)
+                            memory.read8(hl)
                         }
                     };
                     match to {
@@ -180,7 +182,7 @@ impl CPU {
                         }
                         LoadByteTarget::HLI => {
                             let hl = self.registers.read16(U16Register::HL);
-                            self.memory.write8(hl, from);
+                            memory.write8(hl, from);
                         }
                     }
                 }
@@ -188,7 +190,7 @@ impl CPU {
                     self.pc += 1;
                     let from = match from {
                         LoadWordSource::D16 => {
-                            let d16 = self.memory.read16(self.pc);
+                            let d16 = memory.read16(self.pc);
                             self.pc += 2;
                             d16
                         }
@@ -225,12 +227,12 @@ impl CPU {
                             hl
                         }
                         Address => {
-                            let address = self.memory.read16(self.pc);
+                            let address = memory.read16(self.pc);
                             self.pc += 2;
                             address
                         }
                     };
-                    self.memory.write8(address, from);
+                    memory.write8(address, from);
                 }
                 LoadType::IndirectByteToA(from) => {
                     self.pc += 1;
@@ -248,19 +250,19 @@ impl CPU {
                             hl
                         }
                         Address => {
-                            let address = self.memory.read16(self.pc);
+                            let address = memory.read16(self.pc);
                             self.pc += 2;
                             address
                         }
                     };
-                    self.registers.a = self.memory.read8(address);
+                    self.registers.a = memory.read8(address);
                 }
             }
             LDH(load_type, load_direction) => {
                 self.pc += 1;
                 let address = match load_type {
                     LdhOperand::I8 => {
-                        let d8 = self.memory.read8(self.pc);
+                        let d8 = memory.read8(self.pc);
                         self.pc += 1;
                         d8
                     }
@@ -270,10 +272,10 @@ impl CPU {
                 } as u16 + 0xFF00;
                 match load_direction {
                     LdhDirection::FromA => {
-                        self.memory.write8(address, self.registers.a);
+                        memory.write8(address, self.registers.a);
                     }
                     LdhDirection::ToA => {
-                        self.registers.a = self.memory.read8(address);
+                        self.registers.a = memory.read8(address);
                     }
                 }
             }
@@ -289,10 +291,10 @@ impl CPU {
             }
             RL(r) => {
                 self.pc += 2;
-                let mut v = self.load_non_direct_arithmetic_operand(r);
+                let mut v = self.load_non_direct_arithmetic_operand(memory, r);
                 let carry = v & 0x80 != 0;
                 v <<= 1;
-                self.write_non_direct_arithmetic_operand(r, v);
+                self.write_non_direct_arithmetic_operand(memory, r, v);
                 let mut f = 0;
                 if v == 0 {
                     f |= Flag::Zero as u8;
@@ -314,10 +316,10 @@ impl CPU {
             }
             RR(r) => {
                 self.pc += 2;
-                let mut v = self.load_non_direct_arithmetic_operand(r);
+                let mut v = self.load_non_direct_arithmetic_operand(memory, r);
                 let carry = v & 0x01 != 0;
                 v >>= 1;
-                self.write_non_direct_arithmetic_operand(r, v);
+                self.write_non_direct_arithmetic_operand(memory, r, v);
                 let mut f = 0;
                 if v == 0 {
                     f |= Flag::Zero as u8;
@@ -329,7 +331,7 @@ impl CPU {
             }
             BIT(bit, r) => {
                 self.pc += 2;
-                let v = self.load_non_direct_arithmetic_operand(r);
+                let v = self.load_non_direct_arithmetic_operand(memory, r);
                 let set = v & (bit as u8) != 0;
                 let mut f = self.registers.f;
                 if set {
@@ -342,7 +344,7 @@ impl CPU {
                 self.registers.f = f;
             }
             JP(condition) => {
-                let nn = self.memory.read16(self.pc + 1);
+                let nn = memory.read16(self.pc + 1);
                 self.pc += 3;
                 if self.test_jump_condition(condition) {
                     eprintln!("{:0>4X}: Absolute jump to {:0>4X}",
@@ -352,7 +354,7 @@ impl CPU {
                 eprintln!(" New PC: {:0>4X}", self.pc);
             }
             JR(condition) => {
-                let e = self.memory.read8(self.pc + 1);
+                let e = memory.read8(self.pc + 1);
                 // TODO: is e to be interpreted as 2s complement?
                 let e = e as i8;
                 self.pc += 2;
@@ -360,25 +362,18 @@ impl CPU {
                     eprintln!("{:0>4X}: Relative jump by {:#}", self.pc-2, e);
                     self.pc = (self.pc as i16 + e as i16) as u16;
                 }
-                eprintln!(" New PC: {:0>4X}", self.pc);
             }
             CALL(condition) => {
-                let nn = self.memory.read16(self.pc + 1);
-                eprintln!("{:0>4X}: Call to {:0>4X}, SP = {:0>4X}",
-                          self.pc, nn, self.sp);
+                let nn = memory.read16(self.pc + 1);
                 self.pc += 3;
                 if self.test_jump_condition(condition) {
-                    self.push(self.pc);
+                    self.push(memory, self.pc);
                     self.pc = nn;
                 }
-                eprintln!(" New PC: {:0>4X}, new SP: {:0>4X}",
-                          self.pc, self.sp);
             }
             RET(condition) => {
                 if self.test_jump_condition(condition) {
-                    let address = self.pop();
-                    eprintln!("{:0>4X}: Return to {:0>4X}, SP = {:0>4X}",
-                              self.pc, address, self.sp);
+                    let address = self.pop(memory);
                     self.pc = address;
                 } else {
                     self.pc += 1;
@@ -386,26 +381,27 @@ impl CPU {
             }
             PUSH(register) => {
                 self.pc += 1;
-                self.push(self.registers.read16(register));
+                self.push(memory, self.registers.read16(register));
             }
             POP(register) => {
                 self.pc += 1;
-                let value = self.pop();
+                let value = self.pop(memory);
                 // TODO: If we pop to AF, the lowest 4 bits should be set to 0
                 self.registers.write16(register, value);
             }
         }
     }
 
-    fn load_arithmetic_operand(&mut self, operand: ArithmeticOperand) -> u8 {
+    fn load_arithmetic_operand(&mut self, memory: &MemoryBus,
+                               operand: ArithmeticOperand) -> u8 {
         match operand {
             ArithmeticOperand::Register(r) => self.registers.read8(r),
             ArithmeticOperand::HLI => {
                 let hl = self.registers.read16(U16Register::HL);
-                self.memory.read8(hl)
+                memory.read8(hl)
             }
             ArithmeticOperand::D8 => {
-                let d8 = self.memory.read8(self.pc);
+                let d8 = memory.read8(self.pc);
                 self.pc += 1;
                 d8
             }
@@ -413,25 +409,30 @@ impl CPU {
     }
 
     fn load_non_direct_arithmetic_operand(
-            &self, operand: NonDirectArithmeticOperand) -> u8 {
+            &self,
+            memory: &MemoryBus,
+            operand: NonDirectArithmeticOperand) -> u8 {
         match operand {
             NonDirectArithmeticOperand::Register(r) => self.registers.read8(r),
             NonDirectArithmeticOperand::HLI => {
                 let hl = self.registers.read16(U16Register::HL);
-                self.memory.read8(hl)
+                memory.read8(hl)
             }
         }
     }
 
     fn write_non_direct_arithmetic_operand(
-            &mut self, operand: NonDirectArithmeticOperand, value: u8) {
+            &mut self,
+            memory: &mut MemoryBus,
+            operand: NonDirectArithmeticOperand,
+            value: u8) {
         match operand {
             NonDirectArithmeticOperand::Register(r) => {
                 self.registers.write8(r, value);
             }
             NonDirectArithmeticOperand::HLI => {
                 let hl = self.registers.read16(U16Register::HL);
-                self.memory.write8(hl, value);
+                memory.write8(hl, value);
             }
         }
     }
@@ -462,13 +463,13 @@ impl CPU {
         }
     }
 
-    fn push(&mut self, value: u16) {
+    fn push(&mut self, memory: &mut MemoryBus, value: u16) {
         self.sp -= 2;
-        self.memory.write16(self.sp, value);
+        memory.write16(self.sp, value);
     }
 
-    fn pop(&mut self) -> u16 {
-        let value = self.memory.read16(self.sp);
+    fn pop(&mut self, memory: &MemoryBus) -> u16 {
+        let value = memory.read16(self.sp);
         self.sp += 2;
         value
     }

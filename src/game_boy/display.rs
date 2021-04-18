@@ -6,14 +6,14 @@ pub struct Display {
 }
 
 impl Display {
-    pub fn new(refresh_rate: usize) -> Self {
+    pub fn new() -> Self {
         Self{
             pixels: vec![0; WIDTH * HEIGHT],
         }
     }
 
-    pub fn write_pixel(&mut self, x: u8, y: u8, color: u8) {
-        self.pixels[y as usize * HEIGHT + x as usize] = color;
+    pub fn line_buffer(&mut self, y: u8) -> &mut [u8] {
+        &mut self.pixels[y as usize * HEIGHT..((y + 1) as usize * HEIGHT)]
     }
 
     pub fn refresh(&self, window: &mut EmulatorWindow) {

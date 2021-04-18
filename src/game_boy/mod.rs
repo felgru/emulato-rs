@@ -9,16 +9,20 @@ pub mod ppu;
 
 use std::io;
 use std::fs::File;
+use std::time::Instant;
+use std::thread::sleep;
 
 // TODO
-const FRAMERATE:  usize = 60;
+const FRAMERATE: usize = 60;
 const CPU_CYCLES_PER_SECOND: usize = 4_194_304;
 const CPU_CYCLES_PER_FRAME:  usize = CPU_CYCLES_PER_SECOND / FRAMERATE;
+const CPU_CYCLES_PER_SCANLINE: usize = CPU_CYCLES_PER_FRAME / 154;
 
 pub struct GameBoy {
     cpu: cpu::CPU,
     ppu: ppu::PPU,
-    // display: display::Display,
+    memory: memory::MemoryBus,
+    emulator_window: emulator_window::EmulatorWindow,
 }
 
 impl GameBoy {
@@ -27,25 +31,44 @@ impl GameBoy {
     }
 
     pub fn new(boot_rom: [u8;0x100], cartridge: cartridge::Cartridge) -> Self {
-        let bus = memory::MemoryBus::new(cartridge, boot_rom);
+        let memory = memory::MemoryBus::new(cartridge, boot_rom);
         Self {
-            cpu: cpu::CPU::new(bus),
+            cpu: cpu::CPU::new(),
             ppu: ppu::PPU::new(),
+            memory,
+            emulator_window: emulator_window::EmulatorWindow::new(),
         }
     }
 
     pub fn run(&mut self) {
+        use std::time::Duration;
+        let frame_time = Duration::from_micros((1_000_000. / FRAMERATE as f64)
+                                               as u64);
+        let mut last_frame_time = Instant::now();
+        let mut frame = 0;
+        let mut scanline_cycles = 0;
         loop {
-            let mut frame_cycles = 0;
-            while frame_cycles < CPU_CYCLES_PER_FRAME {
-                self.cpu.step();
-                frame_cycles += 4;
-                self.ppu.update();
+            for scanline in 0..154 {
+                eprintln!("frame {:>3} scanline {:>3}", frame, scanline);
+                self.memory.set_ly(scanline);
+                self.ppu.paint_line(&mut self.memory);
+                while scanline_cycles < CPU_CYCLES_PER_SCANLINE {
+                    self.cpu.step(&mut self.memory);
+                    scanline_cycles += 4;
+                }
+                scanline_cycles %= CPU_CYCLES_PER_SCANLINE;
             }
-            // self.display.refresh();
-            // if self.display.is_esc_pressed() {
-                // break;
-            // }
+            frame += 1;
+            let current_frame_time = Instant::now();
+            let elapsed = current_frame_time.duration_since(last_frame_time);
+            if let Some(sleep_duration) = frame_time.checked_sub(elapsed) {
+                sleep(sleep_duration);
+            }
+            last_frame_time = current_frame_time;
+            self.ppu.refresh(&mut self.emulator_window);
+            if self.emulator_window.is_esc_pressed() {
+                break;
+            }
         }
     }
 }

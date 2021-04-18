@@ -13,18 +13,13 @@ pub const HEIGHT: usize = 144;
 const COLORS: [u32; 4] = [0xFFFFFF, 0x808080, 0x404040, 0];
 
 impl EmulatorWindow {
-    pub fn new(refresh_rate: usize) -> Self {
-        let mut window = Window::new(
+    pub fn new() -> Self {
+        let window = Window::new(
             "Game Boy emulator",
             WIDTH * PIXEL_SIZE,
             HEIGHT * PIXEL_SIZE,
             WindowOptions::default(),
         ).unwrap();
-        use std::time::Duration;
-        let wait_time = Duration::from_micros((1000000. / refresh_rate as f64)
-                                              as u64);
-        // TODO: disable limit of update rate
-        window.limit_update_rate(Some(wait_time));
         Self{
             display_buffer: vec![0; WIDTH * HEIGHT * PIXEL_SIZE * PIXEL_SIZE],
             window,

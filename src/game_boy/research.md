@@ -1,6 +1,6 @@
 # Technical References
 
-https://gbdev.io/
+* https://gbdev.io/
 * https://gbdev.gg8.se/wiki/articles/Main_Page
 * https://github.com/Gekkio/gb-ctr
 * https://www.copetti.org/writings/consoles/game-boy/
@@ -12,6 +12,7 @@ https://gbdev.io/
 * https://raw.githubusercontent.com/AntonioND/giibiiadvance/master/docs/TCAGBD.pdf
 * http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
 * https://archive.org/details/GameBoyProgManVer1.1/mode/2up
+* https://github.com/Baekalfen/PyBoy/blob/master/PyBoy.pdf
 
 # CPU Opcodes
 

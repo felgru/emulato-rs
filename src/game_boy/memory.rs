@@ -50,9 +50,6 @@ impl MemoryBus {
             0x4000..=0x7FFF => { // ROMX
                 unimplemented!("reading from ROMX not implemented, yet.");
             }
-            // 0x8000–0x9FFF  VRAM
-            // (0x8000–0x97FF  Tile RAM)
-            // (0x9800–0x9FFF  Background Map)
             // 0xA000–0xBFFF  SRAM  Cartridge RAM
             // 0xC000–0xCFFF  WRAM0  Working RAM
             // 0xD000–0xDFFF  WRAMX  Working RAM
@@ -60,11 +57,16 @@ impl MemoryBus {
             // 0xFE00–0xFE9F  OAM  Object Attribute Memory (description of sprites)
             // 0xFEA0–0xFEFF  UNUSED  (reading returns 0, writing does nothing)
             // 0xFF00–0xFF7F  I/O Registers
-            0x8000..=0xFF41 => {
+            0x8000..=0x9FFF => {
+                // 0x8000–0x9FFF  VRAM
+                // (0x8000–0x97FF  Tile RAM)
+                // (0x9800–0x9FFF  Background Map)
+                self.memory[address as usize]
+            }
+            0xA000..=0xFF41 => {
                 unimplemented!("reading from {:0>4X} not implemented, yet.",
                                address);
             }
-            0xFF44 => 0x90, // TODO: hardcode LY=90 for now to continue boot ROM without implementing PPU
             0xFF42..=0xFF4B => { // LCD Position and scrolling
                 // FF42 - SCY (Scroll Y) (R/W)
                 // FF43 - SCX (Scroll X) (R/W)
@@ -176,6 +178,42 @@ impl MemoryBus {
         LcdControl{flags: self.memory[0xFF40]}
     }
 
+    pub fn lcd_status(&self) -> LcdStatus {
+        LcdStatus{flags: self.memory[0xFF41]}
+    }
+
+    pub fn scy(&self) -> u8 {
+        self.memory[0xFF42]
+    }
+
+    pub fn scx(&self) -> u8 {
+        self.memory[0xFF43]
+    }
+
+    pub fn ly(&self) -> u8 {
+        self.memory[0xFF44]
+    }
+
+    pub fn set_ly(&mut self, ly: u8) {
+        self.memory[0xFF44] = ly;
+    }
+
+    pub fn lyc(&self) -> u8 {
+        self.memory[0xFF45]
+    }
+
+    pub fn wy(&self) -> u8 {
+        self.memory[0xFF4A]
+    }
+
+    pub fn wx(&self) -> u8 {
+        self.memory[0xFF4B]
+    }
+
+    pub fn bg_palette(&self) -> u8 {
+        self.memory[0xFF47]
+    }
+
     pub fn load_boot_rom(mut file: File) -> io::Result<[u8; 0x100]> {
         let mut rom = [0; 0x100];
         file.read(&mut rom)?;
@@ -199,7 +237,8 @@ impl MemoryBus {
 ///   2 	OBJ size 		0=8x8, 1=8x16
 ///   1 	OBJ enable 		0=Off, 1=On
 ///   0 	BG and Window enable/priority 	0=Off, 1=On
-pub struct LcdControl{
+#[derive(Copy, Clone)]
+pub struct LcdControl {
     flags: u8,
 }
 
@@ -272,7 +311,7 @@ impl LcdControl {
 ///         1: In VBlank
 ///         2: Searching OAM
 ///         3: Transferring Data to LCD Controller
-pub struct LcdStatus{
+pub struct LcdStatus {
     flags: u8,
 }
 
