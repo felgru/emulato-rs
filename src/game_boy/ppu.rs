@@ -45,7 +45,7 @@ impl PPU {
         let mut tile_data = fetch_bg_tile_line(
             memory, lcdc, *tile_iter.next().unwrap(), in_tile_y);
         for pixel in self.display.line_buffer(ly).iter_mut() {
-            let p = ((tile_data >> tile_pixel_index + 7) & 1)
+            let p = ((tile_data >> (tile_pixel_index + 7)) & 0b10)
                     | ((tile_data >> tile_pixel_index) & 1);
             *pixel = self.bg_palette[p as usize];
             if tile_pixel_index > 1 {
@@ -86,10 +86,11 @@ fn fetch_bg_tile_line(memory: &MemoryBus, lcdc: LcdControl, tile: u8,
     let (offset, signed)
         = lcdc.bg_and_window_tile_data_offset_and_addressing();
     let orig_tile = tile;
+    let tile_size = 16;
     let tile = if signed {
-        (offset as i16 + (tile as i8) as i16) as u16
+        (offset as i16 + (tile as i8) as i16 * tile_size as i16) as u16
     } else {
-        offset + tile as u16
+        offset + tile as u16 * tile_size
     };
     let low = tile + (2 * in_tile_y) as u16;
     let res = memory.read16(low);
