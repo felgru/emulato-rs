@@ -45,10 +45,11 @@ impl CPU {
             instruction_bytes <<= 8;
             instruction_bytes += memory.read8(i) as u64;
         }
-        eprintln!("{}", self.registers);
-        eprintln!("{:0>4X}: {1:0>2$X} {3:?}", self.pc, instruction_bytes,
-                  2*instruction.len() as usize,
-                  instruction);
+        // eprintln!("{}", self.registers);
+        // self.print_stack(memory);
+        // eprintln!("{:0>4X}: {1:0>2$X} {3:?}", self.pc, instruction_bytes,
+        //           2*instruction.len() as usize,
+        //           instruction);
         self.execute(memory, instruction)
     }
 
@@ -359,11 +360,8 @@ impl CPU {
                 let nn = memory.read16(self.pc + 1);
                 self.pc += 3;
                 if self.test_jump_condition(condition) {
-                    eprintln!("{:0>4X}: Absolute jump to {:0>4X}",
-                              self.pc - 3, nn);
                     self.pc = nn;
                 }
-                eprintln!(" New PC: {:0>4X}", self.pc);
             }
             JR(condition) => {
                 let e = memory.read8(self.pc + 1);
@@ -371,7 +369,6 @@ impl CPU {
                 let e = e as i8;
                 self.pc += 2;
                 if self.test_jump_condition(condition) {
-                    eprintln!("{:0>4X}: Relative jump by {:#}", self.pc-2, e);
                     self.pc = (self.pc as i16 + e as i16) as u16;
                 }
             }
@@ -484,6 +481,20 @@ impl CPU {
         let value = memory.read16(self.sp);
         self.sp += 2;
         value
+    }
+
+    fn print_stack(&self, memory: &MemoryBus) {
+        eprintln!("Stack: SP = {:0>4X}", self.sp);
+        let sp = self.sp;
+        if sp == 0xFFFE {
+            eprintln!("<empty>");
+        } else {
+            let mut p = 0xFFFE;
+            while sp < p {
+                p -= 2;
+                eprintln!("{:0>4X}: {:0>4X}", p, memory.read16(p));
+            }
+        }
     }
 }
 
