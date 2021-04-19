@@ -13,7 +13,7 @@ impl Display {
     }
 
     pub fn line_buffer(&mut self, y: u8) -> &mut [u8] {
-        &mut self.pixels[y as usize * HEIGHT..((y + 1) as usize * HEIGHT)]
+        &mut self.pixels[y as usize * WIDTH..((y + 1) as usize * WIDTH)]
     }
 
     pub fn refresh(&self, window: &mut EmulatorWindow) {
