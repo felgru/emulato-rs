@@ -223,6 +223,80 @@ impl MemoryBus {
     pub fn disable_boot_rom(&mut self) {
         self.boot_rom = None;
     }
+
+    pub fn dump_tile_data(&self) {
+        let tile_size = 2 * 8;
+        let num_tiles = (0x9800 - 0x8000) / tile_size;
+        // print tile data in rows of 16 tiles each
+        let tiles_per_row = 16;
+        let num_rows = num_tiles / tiles_per_row;
+        println!("P2");
+        println!("{} {}", tiles_per_row*8, num_rows*8);
+        println!("3");
+        let mut row_start = 0x8000;
+        for tile_row in 0..num_rows {
+            for row in 0..8 {
+                for tile_col in 0..tiles_per_row {
+                    let tile = self.read16(row_start + 2 * row
+                                           + tile_size * tile_col);
+                    let p = ((tile >> 14) & 0b10) | ((tile >> 7) & 1);
+                    print!("{}", p);
+                    for i in 1..8 {
+                        let p = ((tile >> 14-i) & 0b10) | ((tile >> 7-i) & 1);
+                        print!(" {}", p);
+                    }
+                    println!();
+                }
+            }
+            row_start += tiles_per_row * tile_size;
+        }
+    }
+
+    pub fn dump_bg(&self) {
+        let lcdc = self.lcdc();
+        let palette = Self::expand_palette(self.bg_palette());
+        let (data_start, signed)
+            = lcdc.bg_and_window_tile_data_offset_and_addressing();
+        let tile_map_start = lcdc.bg_tilemap_start();
+        println!("P2");
+        println!("256 256");
+        println!("3");
+        let mut tiles: [u8; 32] = [0; 32];
+        let tile_size = 16;
+        for tile_row in 0..32 {
+            for tile_col in 0..32u16 {
+                let tile
+                    = self.read8(tile_map_start + 32 * tile_row + tile_col);
+                tiles[tile_col as usize] = tile;
+                eprintln!("{:0>4X}", tile);
+            }
+            for row in 0..8 {
+                for tile_col in 0..32 {
+                    let tile_address = if signed {
+                        (data_start as i16
+                         + (tiles[tile_col] as i8) as i16 * tile_size as i16) as u16
+                    } else {
+                        data_start + tiles[tile_col] as u16 * tile_size
+                    };
+                    let tile = self.read16(tile_address + 2 * row);
+                    let p = ((tile >> 14) & 0b10) | ((tile >> 7) & 1);
+                    print!("{}", p);
+                    for i in 1..8 {
+                        let p = ((tile >> 14-i) & 0b10) | ((tile >> 7-i) & 1);
+                        print!(" {}", p);
+                    }
+                    println!();
+                }
+            }
+        }
+    }
+
+    fn expand_palette(palette: u8) -> [u8; 4] {
+        [palette & 0b11,
+         (palette >> 2) & 0b11,
+         (palette >> 4) & 0b11,
+         (palette >> 6) & 0b11]
+    }
 }
 
 /// LCD Control flags

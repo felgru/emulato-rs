@@ -23,7 +23,6 @@ pub fn game_boy_subcommand<'a>() -> App<'a> {
 pub fn run_game_boy_from_subcommand(subcommand: &ArgMatches) {
     let mut builder = super::GameBoy::builder();
     let filename = subcommand.value_of("cartridge-file").unwrap();
-    println!("loading {}", filename);
     let f = File::open(filename).unwrap();
     builder = builder.load_cartridge(f).unwrap();
     if let Some(boot_rom) = subcommand.value_of("boot-rom") {
