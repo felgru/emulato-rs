@@ -48,7 +48,7 @@ impl PPU {
             let p = ((tile_data >> (tile_pixel_index + 7)) & 0b10)
                     | ((tile_data >> tile_pixel_index) & 1);
             *pixel = self.bg_palette[p as usize];
-            if tile_pixel_index > 1 {
+            if tile_pixel_index > 0 {
                 tile_pixel_index -= 1;
             } else {
                 tile_data = fetch_bg_tile_line(
