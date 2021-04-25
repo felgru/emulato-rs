@@ -19,6 +19,7 @@
 * https://meganesulli.com/generate-gb-opcodes/
 * http://gameboy.mongenel.com/dmg/opcodes.html
 * https://izik1.github.io/gbops/
+* https://rgbds.gbdev.io/docs/v0.4.2/gbz80.7
 
 # Boot ROM
 
@@ -33,3 +34,7 @@
 # Homebrew ROMs
 
 * https://gbhh.avivace.com/
+
+# Timing
+
+4 clock cycles = 1 machine cycle (length of NOP execution)

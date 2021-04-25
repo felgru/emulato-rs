@@ -51,10 +51,18 @@ impl GameBoy {
             for scanline in 0..154 {
                 eprintln!("frame {:>3} scanline {:>3}", frame, scanline);
                 self.memory.set_ly(scanline);
+                if scanline == 144 {
+                    // request VBlank interrupt
+                    let requests = self.memory.read8(0xFF0F) | 1;
+                    self.memory.write8(0xFF0F, requests);
+                }
                 self.ppu.paint_line(&mut self.memory);
                 while scanline_cycles < CPU_CYCLES_PER_SCANLINE {
                     self.cpu.step(&mut self.memory);
                     scanline_cycles += 4;
+                    if self.handle_interrupts() {
+                        scanline_cycles += 5 * 4;
+                    }
                 }
                 scanline_cycles %= CPU_CYCLES_PER_SCANLINE;
             }
@@ -69,6 +77,18 @@ impl GameBoy {
             if self.emulator_window.is_esc_pressed() {
                 break;
             }
+        }
+    }
+
+    fn handle_interrupts(&mut self) -> bool {
+        if !self.cpu.interrupts_are_enabled() {
+            return false;
+        }
+        if let Some(interrupt) = self.memory.handle_interrupts() {
+            self.cpu.call_interrupt(&mut self.memory, interrupt);
+            true
+        } else {
+            false
         }
     }
 }

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::memory::MemoryBus;
+use super::memory::{InterruptAddress, MemoryBus};
 
 /// A Sharp LR35902 CPU.
 ///
@@ -9,6 +9,7 @@ pub struct CPU {
     registers: Registers,
     sp: u16, //< stack pointer
     pc: u16, //< program counter
+    ime: bool,
 }
 
 impl CPU {
@@ -17,6 +18,7 @@ impl CPU {
             registers: Registers::new(),
             sp: 0xFFFE,
             pc: 0,
+            ime: false,
         }
     }
 
@@ -398,6 +400,10 @@ impl CPU {
                 // TODO: If we pop to AF, the lowest 4 bits should be set to 0
                 self.registers.write16(register, value);
             }
+            DI => {
+                self.pc += 1;
+                self.ime = false;
+            }
         }
     }
 
@@ -495,6 +501,16 @@ impl CPU {
                 eprintln!("{:0>4X}: {:0>4X}", p, memory.read16(p));
             }
         }
+    }
+
+    pub fn interrupts_are_enabled(&self) -> bool {
+        self.ime
+    }
+
+    pub fn call_interrupt(&mut self, memory: &mut MemoryBus,
+                          interrupt: InterruptAddress) {
+        self.push(memory, self.pc);
+        self.pc = interrupt as u16;
     }
 }
 
@@ -898,6 +914,7 @@ enum Instruction {
     RET(JumpCondition),
     PUSH(U16Register),
     POP(U16Register),
+    DI,
 }
 
 impl Instruction {
@@ -1094,6 +1111,9 @@ impl Instruction {
             0xF2 => {
                 Some(Instruction::LDH(LdhOperand::Ci, LdhDirection::ToA))
             }
+            0xF3 => {
+                Some(Instruction::DI)
+            }
             0xC6 => {
                 Some(Instruction::ADD(ArithmeticOperand::D8))
             }
@@ -1179,6 +1199,7 @@ impl Instruction {
             RET(_condition) => 1,
             PUSH(_u16_register) => 1,
             POP(_u16_register) => 1,
+            DI => 1,
         }
     }
 }

@@ -24,7 +24,7 @@ use super::ppu::LcdMode;
 /// 0xFF80–0xFFFE  HRAM  High RAM Area (targetted by special load instructions)
 /// 0xFFFF         IE Register  Interrupt Enabled Register
 pub struct MemoryBus {
-  memory: [u8; 0xFFFF],
+  memory: [u8; 0x10000],
   cartridge: Cartridge,
   boot_rom: Option<[u8; 0x100]>,
 }
@@ -32,7 +32,7 @@ pub struct MemoryBus {
 impl MemoryBus {
     pub fn new(cartridge: Cartridge, boot_rom: [u8; 0x100]) -> Self {
         Self{
-            memory: [0; 0xFFFF],
+            memory: [0; 0x10000],
             cartridge,
             boot_rom: Some(boot_rom),
         }
@@ -63,7 +63,14 @@ impl MemoryBus {
                 // (0x9800–0x9FFF  Background Map)
                 self.memory[address as usize]
             }
-            0xA000..=0xFF41 => {
+            0xA000..=0xFF0E => {
+                unimplemented!("reading from {:0>4X} not implemented, yet.",
+                               address);
+            }
+            0xFF0F => { // IF – Interrupt Flag
+                self.memory[address as usize]
+            }
+            0xFF10..=0xFF41 => {
                 unimplemented!("reading from {:0>4X} not implemented, yet.",
                                address);
             }
@@ -114,6 +121,9 @@ impl MemoryBus {
             }
             0xFF00..=0xFF7F => { // I/O Registers
                 match address {
+                    0xFF0F => { // IF – Interrupt Flag
+                        self.memory[address as usize] = value;
+                    }
                     0xFF10..=0xFF26 => { // Sound
                         // TODO: ignoring sound for now
                     }
@@ -123,6 +133,9 @@ impl MemoryBus {
                         // https://gbdev.io/pandocs/#lcd-control
                         self.memory[address as usize] = value;
                         // unimplemented!("LCDC = {:0>4X}", value);
+                    }
+                    0xFF41 => { // LCD Status
+                        self.memory[address as usize] = value;
                     }
                     0xFF44 => { // LY (LCDC Y-Coordinate) (R)
                         panic!("Trying to write to LY");
@@ -160,7 +173,12 @@ impl MemoryBus {
                 self.memory[address as usize] = value;
             }
             0xFFFF => { // IE Register
-                unimplemented!("Writing to IE register not implemented.");
+                if value == 1 { // VBLANK
+                    self.memory[address as usize] = value;
+                } else {
+                    unimplemented!(
+                        "Writing non-VBlank to IE register not implemented.");
+                }
             }
         }
     }
@@ -297,6 +315,27 @@ impl MemoryBus {
          (palette >> 4) & 0b11,
          (palette >> 6) & 0b11]
     }
+
+    pub fn handle_interrupts(&mut self) -> Option<InterruptAddress> {
+        let mut requests = self.read8(0xFF0F);
+        let interrupts = self.read8(0xFFFF) & requests & 0x1F;
+        if interrupts == 0 {
+            return None;
+        }
+        let next_interrupt = interrupts.trailing_zeros();
+        requests ^= 1 << next_interrupt;
+        self.write8(0xFF0F, requests);
+        use InterruptAddress::*;
+        let address = match next_interrupt {
+            0 => VBLANK,
+            1 => LCD_STAT,
+            2 => TIMER,
+            3 => SERIAL,
+            4 => JOYPAD,
+            _ => unreachable!(),
+        };
+        Some(address)
+    }
 }
 
 /// LCD Control flags
@@ -413,4 +452,14 @@ impl LcdStatus {
     fn mode(&self) -> LcdMode {
         (self.flags & 3).into()
     }
+}
+
+#[repr(u16)]
+#[derive(Debug)]
+pub enum InterruptAddress {
+    VBLANK = 0x40,
+    LCD_STAT = 0x48,
+    TIMER = 0x50,
+    SERIAL = 0x58,
+    JOYPAD = 0x60,
 }
