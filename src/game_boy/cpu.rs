@@ -143,10 +143,35 @@ impl CPU {
                     }
                 }
             }
+            AND(operand) => {
+                self.pc += 1;
+                let operand = self.load_arithmetic_operand(memory, operand);
+                self.registers.a &= operand;
+                self.registers.f = if self.registers.a == 0 {
+                    Flag::Zero as u8
+                } else {
+                    0
+                } | Flag::HalfCarry as u8;
+            }
             XOR(operand) => {
                 self.pc += 1;
                 let operand = self.load_arithmetic_operand(memory, operand);
                 self.registers.a ^= operand;
+                self.registers.f = if self.registers.a == 0 {
+                    Flag::Zero as u8
+                } else {
+                    0
+                };
+            }
+            OR(operand) => {
+                self.pc += 1;
+                let operand = self.load_arithmetic_operand(memory, operand);
+                self.registers.a |= operand;
+                self.registers.f = if self.registers.a == 0 {
+                    Flag::Zero as u8
+                } else {
+                    0
+                };
             }
             CP(operand) => {
                 self.pc += 1;
@@ -897,7 +922,9 @@ enum Instruction {
     NOP,
     ADD(ArithmeticOperand),
     SUB(ArithmeticOperand),
+    AND(ArithmeticOperand),
     XOR(ArithmeticOperand),
+    OR(ArithmeticOperand),
     CP(ArithmeticOperand),
     INC(IncDecType),
     DEC(IncDecType),
@@ -1022,9 +1049,17 @@ impl Instruction {
                 let operand = instruction_byte & 0b111;
                 Some(Instruction::SUB(operand.into()))
             }
+            0xA0..=0xA7 => {
+                let operand = instruction_byte & 0b111;
+                Some(Instruction::AND(operand.into()))
+            }
             0xA8..=0xAF => {
                 let operand = instruction_byte & 0b111;
                 Some(Instruction::XOR(operand.into()))
+            }
+            0xB0..=0xB7 => {
+                let operand = instruction_byte & 0b111;
+                Some(Instruction::OR(operand.into()))
             }
             0xB8..=0xBF => {
                 let operand = instruction_byte & 0b111;
@@ -1122,9 +1157,15 @@ impl Instruction {
                 Some(Instruction::SUB(ArithmeticOperand::D8))
             }
             0xDE => unimplemented!("SBC n"),
-            0xE6 => unimplemented!("AND n"),
-            0xEE => unimplemented!("XOR n"),
-            0xF6 => unimplemented!("OR n"),
+            0xE6 => {
+                Some(Instruction::AND(ArithmeticOperand::D8))
+            }
+            0xEE => {
+                Some(Instruction::XOR(ArithmeticOperand::D8))
+            }
+            0xF6 => {
+                Some(Instruction::OR(ArithmeticOperand::D8))
+            }
             0xFE => {
                 Some(Instruction::CP(ArithmeticOperand::D8))
             }
@@ -1144,19 +1185,12 @@ impl Instruction {
         use Instruction::*;
         match self {
             NOP => 1,
-            ADD(arithmetic_operand) => match arithmetic_operand {
-                ArithmeticOperand::D8 => 2,
-                _ => 1,
-            }
-            SUB(arithmetic_operand) => match arithmetic_operand {
-                ArithmeticOperand::D8 => 2,
-                _ => 1,
-            }
-            XOR(arithmetic_operand) => match arithmetic_operand {
-                ArithmeticOperand::D8 => 2,
-                _ => 1,
-            }
-            CP(arithmetic_operand) => match arithmetic_operand {
+            ADD(arithmetic_operand)
+                | SUB(arithmetic_operand)
+                | AND(arithmetic_operand)
+                | XOR(arithmetic_operand)
+                | OR (arithmetic_operand)
+                | CP(arithmetic_operand) => match arithmetic_operand {
                 ArithmeticOperand::D8 => 2,
                 _ => 1,
             }
