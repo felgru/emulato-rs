@@ -76,10 +76,58 @@ impl CPU {
                 // TODO: How is the HalfCarry flag set?
                 self.registers.f = f;
             }
+            ADC(operand) => {
+                self.pc += 1;
+                let operand = self.load_arithmetic_operand(memory, operand);
+                let (new_a, carry) = {
+                    let (new_a, carry)
+                        = self.registers.a.overflowing_add(operand);
+                    if self.registers.f & Flag::Carry as u8 == 0 {
+                        (new_a, carry)
+                    } else {
+                        let (new_a, carry2) = new_a.overflowing_add(1);
+                        (new_a, carry || carry2)
+                    }
+                };
+                self.registers.a = new_a;
+                let mut f = 0;
+                if new_a == 0 {
+                    f |= Flag::Zero as u8;
+                }
+                if carry {
+                    f |= Flag::Carry as u8;
+                }
+                // TODO: How is the HalfCarry flag set?
+                self.registers.f = f;
+            }
             SUB(operand) => {
                 self.pc += 1;
                 let operand = self.load_arithmetic_operand(memory, operand);
                 let (new_a, carry) = self.registers.a.overflowing_sub(operand);
+                self.registers.a = new_a;
+                let mut f = Flag::Subtract as u8;
+                if new_a == 0 {
+                    f |= Flag::Zero as u8;
+                }
+                if carry {
+                    f |= Flag::Carry as u8;
+                }
+                // TODO: How is the HalfCarry flag set?
+                self.registers.f = f;
+            }
+            SBC(operand) => {
+                self.pc += 1;
+                let operand = self.load_arithmetic_operand(memory, operand);
+                let (new_a, carry) = {
+                    let (new_a, carry)
+                        = self.registers.a.overflowing_sub(operand);
+                    if self.registers.f & Flag::Carry as u8 == 0 {
+                        (new_a, carry)
+                    } else {
+                        let (new_a, carry2) = new_a.overflowing_sub(1);
+                        (new_a, carry || carry2)
+                    }
+                };
                 self.registers.a = new_a;
                 let mut f = Flag::Subtract as u8;
                 if new_a == 0 {
@@ -925,7 +973,9 @@ enum JumpCondition {
 enum Instruction {
     NOP,
     ADD(ArithmeticOperand),
+    ADC(ArithmeticOperand),
     SUB(ArithmeticOperand),
+    SBC(ArithmeticOperand),
     AND(ArithmeticOperand),
     XOR(ArithmeticOperand),
     OR(ArithmeticOperand),
@@ -1050,9 +1100,17 @@ impl Instruction {
                 let operand = instruction_byte & 0b111;
                 Some(Instruction::ADD(operand.into()))
             }
+            0x88..=0x8F => {
+                let operand = instruction_byte & 0b111;
+                Some(Instruction::ADC(operand.into()))
+            }
             0x90..=0x97 => {
                 let operand = instruction_byte & 0b111;
                 Some(Instruction::SUB(operand.into()))
+            }
+            0x98..=0x9F => {
+                let operand = instruction_byte & 0b111;
+                Some(Instruction::SBC(operand.into()))
             }
             0xA0..=0xA7 => {
                 let operand = instruction_byte & 0b111;
@@ -1160,11 +1218,15 @@ impl Instruction {
             0xC6 => {
                 Some(Instruction::ADD(ArithmeticOperand::D8))
             }
-            0xCE => unimplemented!("ADC n"),
+            0xCE => {
+                Some(Instruction::ADC(ArithmeticOperand::D8))
+            }
             0xD6 => {
                 Some(Instruction::SUB(ArithmeticOperand::D8))
             }
-            0xDE => unimplemented!("SBC n"),
+            0xDE => {
+                Some(Instruction::SBC(ArithmeticOperand::D8))
+            }
             0xE6 => {
                 Some(Instruction::AND(ArithmeticOperand::D8))
             }
@@ -1194,7 +1256,9 @@ impl Instruction {
         match self {
             NOP => 1,
             ADD(arithmetic_operand)
+                | ADC(arithmetic_operand)
                 | SUB(arithmetic_operand)
+                | SBC(arithmetic_operand)
                 | AND(arithmetic_operand)
                 | XOR(arithmetic_operand)
                 | OR (arithmetic_operand)
