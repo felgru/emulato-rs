@@ -429,6 +429,10 @@ impl CPU {
                 self.pc += 1;
                 self.ime = false;
             }
+            EI => {
+                self.pc += 1;
+                self.ime = true;
+            }
         }
     }
 
@@ -942,6 +946,7 @@ enum Instruction {
     PUSH(U16Register),
     POP(U16Register),
     DI,
+    EI,
 }
 
 impl Instruction {
@@ -1149,6 +1154,9 @@ impl Instruction {
             0xF3 => {
                 Some(Instruction::DI)
             }
+            0xFB => {
+                Some(Instruction::EI)
+            }
             0xC6 => {
                 Some(Instruction::ADD(ArithmeticOperand::D8))
             }
@@ -1234,6 +1242,7 @@ impl Instruction {
             PUSH(_u16_register) => 1,
             POP(_u16_register) => 1,
             DI => 1,
+            EI => 1,
         }
     }
 }
