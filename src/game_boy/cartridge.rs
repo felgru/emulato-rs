@@ -5,23 +5,294 @@ use std::str;
 
 pub struct Cartridge {
     rom: Vec<u8>,
+    ram: Vec<u8>,
+    memory_controller: MemoryController,
 }
 
 impl Cartridge {
     pub fn load_from_file(mut file: File) -> io::Result<Self> {
         let mut rom = Vec::new();
         file.read_to_end(&mut rom)?;
+        let header = CartridgeHeader{rom: &rom};
+        let memory_controller
+            = MemoryController::from_cartridge_header(&header);
+        let ram = vec![0; header.num_ram_banks() as usize * 8 * 1024];
         Ok(Self{
             rom,
+            ram,
+            memory_controller,
         })
+    }
+
+    pub fn read8(&self, address: u16) -> u8 {
+        match address {
+            0x0000..=0x3FFF => { // ROM Bank 0
+                self.rom[address as usize]
+            }
+            0x4000..=0x7FFF => { // ROM X (switchable via Memory Controller)
+                self.romx_read8(address)
+            }
+            0xA000..=0xBFFF => { // SRAM  Cartridge RAM
+                self.ram_read8(address)
+            }
+            _ => panic!("Trying to read non-Cartridge address {:0>4X}.",
+                        address),
+        }
+    }
+
+    pub fn write8(&mut self, address: u16, value: u8) {
+        match address {
+            0x0000..=0x7FFF => {
+                self.memory_controller.register_write8(address, value);
+            }
+            0xA000..=0xBFFF => {
+                self.memory_controller.ram_write8(&mut self.ram, address,
+                                                  value);
+            }
+            _ => panic!("Trying to write non-Cartridge address {:0>4X}.",
+                        address),
+        }
     }
 
     pub fn rom0_read8(&self, address: u16) -> u8 {
         self.rom[address as usize]
     }
 
+    pub fn romx_read8(&self, address: u16) -> u8 {
+        self.memory_controller.romx_read8(&self.rom, address)
+    }
+
+    pub fn ram_read8(&self, address: u16) -> u8 {
+        self.memory_controller.ram_read8(&self.ram, address)
+    }
+
     pub fn header<'a>(&'a self) -> CartridgeHeader<'a> {
         CartridgeHeader{rom: &self.rom}
+    }
+}
+
+/// The type of a cartridge
+///
+/// Possible values:
+/// 0x00  ROM ONLY
+/// 0x01  MBC1
+/// 0x02  MBC1+RAM
+/// 0x03  MBC1+RAM+BATTERY
+/// 0x05  MBC2
+/// 0x06  MBC2+BATTERY
+/// 0x08  ROM+RAM *
+/// 0x09  ROM+RAM+BATTERY *
+/// 0x0B  MMM01
+/// 0x0C  MMM01+RAM
+/// 0x0D  MMM01+RAM+BATTERY
+/// 0x0F  MBC3+TIMER+BATTERY
+/// 0x10  MBC3+TIMER+RAM+BATTERY **
+/// 0x11  MBC3
+/// 0x12  MBC3+RAM **
+/// 0x13  MBC3+RAM+BATTERY **
+/// 0x19  MBC5
+/// 0x1A  MBC5+RAM
+/// 0x1B  MBC5+RAM+BATTERY
+/// 0x1C  MBC5+RUMBLE
+/// 0x1D  MBC5+RUMBLE+RAM
+/// 0x1E  MBC5+RUMBLE+RAM+BATTERY
+/// 0x20  MBC6
+/// 0x22  MBC7+SENSOR+RUMBLE+RAM+BATTERY
+/// 0xFC  POCKET CAMERA
+/// 0xFD  BANDAI TAMA5
+/// 0xFE  HuC3
+/// 0xFF  HuC1+RAM+BATTERY
+#[derive(Debug)]
+pub struct CartridgeType(u8);
+
+impl CartridgeType {
+    pub fn memory_controller(self) -> MemoryControllerModel {
+        use MemoryControllerModel::*;
+        match self.0 {
+            0x00 => NoController,
+            0x01..=0x03 => MBC1,
+            0x05..=0x06 => MBC2,
+            0x08..=0x09 => NoController,
+            0x0B..=0x0D => MMM01,
+            0x0F..=0x13 => MBC3,
+            0x19..=0x1E => MBC5,
+            0x20 => MBC6,
+            0x22 => MBC7,
+            0xFC => PocketCamera,
+            0xFD => BandaiTAMA5,
+            0xFE => HuC3,
+            0xFF => HuC1,
+            cartridge_type => {
+                unimplemented!("Unknown cartridge type: {:0>2X}.",
+                               cartridge_type);
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum MemoryControllerModel {
+    NoController,
+    MBC1,
+    MBC2,
+    MBC3, // or MBC30 if RAM size is 64KB
+    MBC5,
+    MBC6,
+    MBC7,
+    MMM01,
+    HuC1,
+    HuC3,
+    PocketCamera,
+    BandaiTAMA5,
+}
+
+enum MemoryController {
+    NoController,
+    MBC1(MBC1),
+}
+
+impl MemoryController {
+    fn from_cartridge_header(header: &CartridgeHeader) -> Self {
+        let controller_model = header.cartridge_type().memory_controller();
+        use MemoryControllerModel as Model;
+        match controller_model {
+            Model::NoController => Self::NoController,
+            Model::MBC1 => Self::MBC1(MBC1::from_cartridge_header(header)),
+            _ => unimplemented!("Memory controller {:?} not handled yet.",
+                                controller_model),
+        }
+    }
+
+    fn romx_read8(&self, rom: &[u8], address: u16) -> u8 {
+        use MemoryController::*;
+        match self {
+            NoController => rom[address as usize],
+            MBC1(mbc1) => {
+                rom[address as usize - 0x4000 + mbc1.rom_bank_offset()]
+            }
+        }
+    }
+
+    fn ram_read8(&self, ram: &[u8], address: u16) -> u8 {
+        use MemoryController::*;
+        match self {
+            NoController => ram[address as usize],
+            MBC1(mbc1) => {
+                ram[address as usize - 0xA000 + mbc1.ram_bank_offset()]
+            }
+        }
+    }
+
+    fn register_write8(&mut self, address: u16, value: u8) {
+        use MemoryController::*;
+        match self {
+            NoController => unimplemented!(
+                "Writing {:0>2X} to {:0>4X} without memory controller.",
+                value, address),
+            MBC1(mbc1) => mbc1.register_write8(address, value),
+        }
+    }
+
+    fn ram_write8(&mut self, ram: &mut [u8], address: u16, value: u8) {
+        use MemoryController::*;
+        match self {
+            NoController => unimplemented!(
+                "Writing {:0>2X} to {:0>4X} without memory controller.",
+                value, address),
+            MBC1(mbc1) => {
+                ram[address as usize - 0xA000 + mbc1.ram_bank_offset()]
+                    = value;
+            }
+        }
+    }
+}
+
+trait MemoryControllerRegisters {
+    fn register_write8(&mut self, address: u16, value: u8);
+
+    fn rom_bank_offset(&self) -> usize;
+
+    fn ram_bank_offset(&self) -> usize;
+}
+
+#[repr(u8)]
+#[derive(Copy, Clone, Eq, PartialEq)]
+enum MBC1BankingMode {
+    Simple = 0,
+    Advanced = 1,
+}
+
+impl From<u8> for MBC1BankingMode {
+    fn from(value: u8) -> Self {
+        match value {
+            0x00 => Self::Simple,
+            0x01 => Self::Advanced,
+            _ => panic!("Unknown MBC1 banking mode: {:0>2X}.", value),
+        }
+    }
+}
+
+struct MBC1 {
+    rom_bank: u8,
+    ram_bank: u8,
+    num_rom_banks: u16,
+    num_ram_banks: u8,
+    banking_mode: MBC1BankingMode,
+}
+
+impl MBC1 {
+    fn from_cartridge_header(header: &CartridgeHeader) -> Self {
+        let num_rom_banks = header.num_rom_banks();
+        let num_ram_banks = header.num_ram_banks();
+        if num_rom_banks > 64 || num_ram_banks > 1 {
+            unimplemented!(
+                "MBC1 with {} ROM banks and {} RAM banks not implemented yet.",
+                num_rom_banks, num_ram_banks);
+
+        }
+        Self{
+            rom_bank: 1,
+            ram_bank: 0,
+            num_rom_banks,
+            num_ram_banks,
+            banking_mode: MBC1BankingMode::Simple,
+        }
+    }
+}
+
+impl MemoryControllerRegisters for MBC1 {
+    fn register_write8(&mut self, address: u16, value: u8) {
+        match address {
+            0x0000..=0x1FFF => { // RAM Enable
+                // 0x00  Disable RAM (default)
+                // 0x0A  Enable RAM
+            }
+            0x2000..=0x3FFF => { // ROM Bank Number
+                // TODO: mask with max bits required for num_rom_banks
+                let mut bank = value & 0x1F;
+                if bank == 0 {
+                    bank += 1;
+                }
+                self.rom_bank = bank;
+            }
+            0x4000..=0x5FFF => {
+                // RAM Bank Number | Upper Bits of ROM Bank Number
+                unimplemented!("Setting RAM Banking Number/Upper bits fo ROM banking Number to {:0>2X}.",
+                               value);
+            }
+            0x6000..=0x7FFF => { // Banking Mode Select
+                self.banking_mode = value.into();
+            }
+            _ => unreachable!("{:0>4X} is not a cartridge register.", address),
+        }
+    }
+
+    fn rom_bank_offset(&self) -> usize {
+        0x4000 * self.rom_bank as usize
+    }
+
+    fn ram_bank_offset(&self) -> usize {
+        0x2000 * self.ram_bank as usize
     }
 }
 
@@ -73,8 +344,8 @@ impl<'a> CartridgeHeader<'a> {
         self.rom[0x0146] == 0x03
     }
 
-    pub fn cartridge_type(&self) -> u8 {
-        self.rom[0x0147]
+    pub fn cartridge_type(&self) -> CartridgeType {
+        CartridgeType(self.rom[0x0147])
     }
 
     /// Number of ROM banks of 16KB each

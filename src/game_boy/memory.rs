@@ -40,17 +40,19 @@ impl MemoryBus {
 
     pub fn read8(&self, address: u16) -> u8 {
         match address {
-            0x0000..=0x3FFF => { // ROM0
-                if self.boot_rom.is_some() && address < 0x100 {
-                    self.boot_rom.unwrap()[address as usize]
+            0x0000..=0x00FF => { // Boot ROM / ROM Bank 0
+                if let Some(ref boot_rom) = self.boot_rom {
+                    boot_rom[address as usize]
                 } else {
                     self.cartridge.rom0_read8(address)
                 }
             }
-            0x4000..=0x7FFF => { // ROMX
-                unimplemented!("reading from ROMX not implemented, yet.");
+            0x0100..=0x7FFF | 0xA000..=0xBFFF => { // Cartridge
+                // 0x0000–0x3FFF  ROM Bank 0
+                // 0x4000–0x7FFF  ROM X (switchable via Memory Controller)
+                // 0xA000–0xBFFF  SRAM  Cartridge RAM
+                self.cartridge.read8(address)
             }
-            // 0xA000–0xBFFF  SRAM  Cartridge RAM
             // 0xC000–0xCFFF  WRAM0  Working RAM
             // 0xD000–0xDFFF  WRAMX  Working RAM
             // 0xE000–0xFDFF  ECHO  echos Working RAM, discouraged to be used
@@ -63,7 +65,7 @@ impl MemoryBus {
                 // (0x9800–0x9FFF  Background Map)
                 self.memory[address as usize]
             }
-            0xA000..=0xFF0E => {
+            0xC000..=0xFF0E => {
                 unimplemented!("reading from {:0>4X} not implemented, yet.",
                                address);
             }
@@ -98,16 +100,20 @@ impl MemoryBus {
 
     pub fn write8(&mut self, address: u16, value: u8) {
         match address {
-            0x0000..=0x7FFF => { // ROM
-                unimplemented!("writing to ROM not implemented.");
+            0x0000..=0x7FFF => { // Cartridge ROM
+                self.cartridge.write8(address, value);
             }
-            // 0x8000–0x9FFF  VRAM
-            // (0x8000–0x97FF  Tile RAM)
-            // (0x9800–0x9FFF  Background Map)
-            // 0xA000–0xBFFF  SRAM  Cartridge RAM
-            // 0xC000–0xCFFF  WRAM0  Working RAM
-            // 0xD000–0xDFFF  WRAMX  Working RAM
-            0x8000..=0xDFFF => {
+            0x8000..=0x9FFF => { // VRAM
+                // (0x8000–0x97FF  Tile RAM)
+                // (0x9800–0x9FFF  Background Map)
+                self.memory[address as usize] = value;
+            }
+            0xA000..=0xBFFF => { // SRAM  Cartridge RAM
+                self.cartridge.write8(address, value);
+            }
+            0xC000..=0xDFFF => { // Working RAM
+                // 0xC000–0xCFFF  WRAM0  Working RAM
+                // 0xD000–0xDFFF  WRAMX  Working RAM
                 self.memory[address as usize] = value;
             }
             0xE000..=0xFDFF => { // Echo
