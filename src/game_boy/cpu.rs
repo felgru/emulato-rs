@@ -1087,13 +1087,13 @@ impl Instruction {
             0xC9 => {
                 Some(Instruction::RET(JumpCondition::Unconditional))
             }
-            0xC2 => {
+            0xC0 => {
                 Some(Instruction::RET(JumpCondition::NZ))
             }
             0xC8 => {
                 Some(Instruction::RET(JumpCondition::Z))
             }
-            0xD2 => {
+            0xD0 => {
                 Some(Instruction::RET(JumpCondition::NC))
             }
             0xD8 => {
