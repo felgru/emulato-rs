@@ -171,6 +171,11 @@ impl MemoryBus {
                         }
                         self.memory[address as usize] = value;
                     }
+                    0xFF72..=0xFF7F => { // Undocumented I/O registers
+                        // TODO: Improve handling of undocumented I/O registers
+                        eprintln!("Wrting {:0>2X} to undocumented I/O register {:0>4X}.",
+                                  value, address);
+                    }
                     _ => unimplemented!("Writing to I/O register {:0>4X} not implemented.",
                                         address),
                 }
