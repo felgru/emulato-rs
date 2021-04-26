@@ -191,6 +191,33 @@ impl CPU {
                     }
                 }
             }
+            ADD16(source) => {
+                self.pc += 1;
+                let hl = self.registers.read16(U16Register::HL);
+                let operand = self.load_arithmetic_word_source(source);
+                let (new_hl, carry) = hl.overflowing_add(operand);
+                self.registers.write16(U16Register::HL, new_hl);
+                let mut f = self.registers.f & Flag::Zero as u8;
+                if carry {
+                    f |= Flag::Carry as u8;
+                }
+                // TODO: How is the HalfCarry flag set?
+                self.registers.f = f;
+            }
+            ADD16SP => {
+                self.pc += 1;
+                let s = memory.read8(self.pc) as i8;
+                self.pc += 1;
+                let (new_sp, carry)
+                    = (self.sp as i16).overflowing_add(s as i16);
+                self.sp = new_sp as u16;
+                let mut f = 0;
+                if carry {
+                    f |= Flag::Carry as u8;
+                }
+                // TODO: How is the HalfCarry flag set?
+                self.registers.f = f;
+            }
             AND(operand) => {
                 self.pc += 1;
                 let operand = self.load_arithmetic_operand(memory, operand);
@@ -417,6 +444,17 @@ impl CPU {
                 }
                 self.registers.f = f;
             }
+            SWAP(r) => {
+                self.pc += 2;
+                let v = self.load_non_direct_arithmetic_operand(memory, r);
+                let v = (v >> 4) | (v << 4);
+                self.write_non_direct_arithmetic_operand(memory, r, v);
+                self.registers.f = if v == 0 {
+                    Flag::Zero as u8
+                } else {
+                    0
+                };
+            }
             BIT(bit, r) => {
                 self.pc += 2;
                 let v = self.load_non_direct_arithmetic_operand(memory, r);
@@ -431,12 +469,33 @@ impl CPU {
                 f = (f & !mask) | Flag::HalfCarry as u8;
                 self.registers.f = f;
             }
+            RES(bit, r) => {
+                self.pc += 2;
+                let v = self.load_non_direct_arithmetic_operand(memory, r)
+                      & !(bit as u8);
+                self.write_non_direct_arithmetic_operand(memory, r, v);
+            }
+            SET(bit, r) => {
+                self.pc += 2;
+                let v = self.load_non_direct_arithmetic_operand(memory, r)
+                      | (bit as u8);
+                self.write_non_direct_arithmetic_operand(memory, r, v);
+            }
+            CPL => {
+                self.pc += 1;
+                self.registers.a = !self.registers.a;
+                let f = Flag::Subtract as u8 | Flag::HalfCarry as u8;
+                self.registers.f = f;
+            }
             JP(condition) => {
                 let nn = memory.read16(self.pc + 1);
                 self.pc += 3;
                 if self.test_jump_condition(condition) {
                     self.pc = nn;
                 }
+            }
+            JPHL => {
+                self.pc = self.registers.read16(U16Register::HL);
             }
             JR(condition) => {
                 let e = memory.read8(self.pc + 1);
@@ -455,6 +514,11 @@ impl CPU {
                     self.pc = nn;
                 }
             }
+            RST(n) => {
+                self.pc += 1;
+                self.push(memory, self.pc);
+                self.pc = n as u16;
+            }
             RET(condition) => {
                 if self.test_jump_condition(condition) {
                     let address = self.pop(memory);
@@ -462,6 +526,11 @@ impl CPU {
                 } else {
                     self.pc += 1;
                 }
+            }
+            RETI => {
+                let address = self.pop(memory);
+                self.pc = address;
+                self.ime = true;
             }
             PUSH(register) => {
                 self.pc += 1;
@@ -529,6 +598,17 @@ impl CPU {
         }
     }
 
+    fn load_arithmetic_word_source(&self,
+                                   source: ArithmeticWordSource) -> u16 {
+        use U16Register::*;
+        match source {
+            ArithmeticWordSource::BC => self.registers.read16(BC),
+            ArithmeticWordSource::DE => self.registers.read16(DE),
+            ArithmeticWordSource::HL => self.registers.read16(HL),
+            ArithmeticWordSource::SP => self.sp,
+        }
+    }
+
     fn load_inc_dec_16_operand(&self, operand: IncDec16Operand) -> u16 {
         match operand {
             IncDec16Operand::Register(rr) => self.registers.read16(rr),
@@ -586,6 +666,7 @@ impl CPU {
 
     pub fn call_interrupt(&mut self, memory: &mut MemoryBus,
                           interrupt: InterruptAddress) {
+        self.ime = false;
         self.push(memory, self.pc);
         self.pc = interrupt as u16;
     }
@@ -759,6 +840,27 @@ impl From<u8> for ArithmeticOperand {
             0b110 => HLI,
             0b111 => Register(A),
             _ => panic!("{:X} is not a valid ArithmeticOperand.", v),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+enum ArithmeticWordSource {
+    BC,
+    DE,
+    HL,
+    SP,
+}
+
+impl From<u8> for ArithmeticWordSource {
+    fn from(v: u8) -> Self {
+        use ArithmeticWordSource::*;
+        match v {
+            0b000 => BC,
+            0b001 => DE,
+            0b010 => HL,
+            0b011 => SP,
+            _ => panic!("{:X} is not a valid ArithmeticWordSource.", v),
         }
     }
 }
@@ -982,17 +1084,26 @@ enum Instruction {
     CP(ArithmeticOperand),
     INC(IncDecType),
     DEC(IncDecType),
+    ADD16(ArithmeticWordSource),
+    ADD16SP,
     LD(LoadType),
     LDH(LdhOperand, LdhDirection),
+    SWAP(NonDirectArithmeticOperand),
     BIT(Bit, NonDirectArithmeticOperand),
+    RES(Bit, NonDirectArithmeticOperand),
+    SET(Bit, NonDirectArithmeticOperand),
     RLA,
     RL(NonDirectArithmeticOperand),
     RRA,
     RR(NonDirectArithmeticOperand),
+    CPL,
     JP(JumpCondition),
+    JPHL,
     JR(JumpCondition),
     CALL(JumpCondition),
+    RST(u8),
     RET(JumpCondition),
+    RETI,
     PUSH(U16Register),
     POP(U16Register),
     DI,
@@ -1018,10 +1129,24 @@ impl Instruction {
                 let r = instruction_byte & 0b111;
                 Some(Instruction::RR(r.into()))
             }
+            0x30..=0x37 => {
+                let r = instruction_byte & 0b111;
+                Some(Instruction::SWAP(r.into()))
+            }
             0x40..=0x7F => {
                 let bit = (instruction_byte & 0b0011_1000) >> 3;
                 let r = instruction_byte & 0b111;
                 Some(Instruction::BIT(bit.into(), r.into()))
+            }
+            0x80..=0xBF => {
+                let bit = (instruction_byte & 0b0011_1000) >> 3;
+                let r = instruction_byte & 0b111;
+                Some(Instruction::RES(bit.into(), r.into()))
+            }
+            0xA0..=0xFF => {
+                let bit = (instruction_byte & 0b0011_1000) >> 3;
+                let r = instruction_byte & 0b111;
+                Some(Instruction::SET(bit.into(), r.into()))
             }
             _ => None,
         }
@@ -1062,6 +1187,11 @@ impl Instruction {
                 let r = (instruction_byte & 0b111_000) >> 3;
                 Some(Instruction::DEC(IncDecType::IncDec8(r.into())))
             }
+            0b0000_1001..=0b0011_1001
+                    if instruction_byte & 0b1111 == 0b1001 => {
+                let r = (instruction_byte & 0b11_0000) >> 4;
+                Some(Instruction::ADD16(r.into()))
+            }
             0b01_000_001..=0b01_111_111 => {
                 let from = instruction_byte & 0b111;
                 let to = (instruction_byte & 0b111_000) >> 3;
@@ -1089,6 +1219,9 @@ impl Instruction {
             }
             0x28 => {
                 Some(Instruction::JR(JumpCondition::Z))
+            }
+            0x2F => {
+                Some(Instruction::CPL)
             }
             0x30 => {
                 Some(Instruction::JR(JumpCondition::NC))
@@ -1182,6 +1315,10 @@ impl Instruction {
             0xDC => {
                 Some(Instruction::CALL(JumpCondition::C))
             }
+            0xC7 | 0xCF | 0xD7 | 0xDF | 0xE7 | 0xEF | 0xF7 | 0xFF => {
+                let n = instruction_byte & 0x38;
+                Some(Instruction::RST(n))
+            }
             0xC9 => {
                 Some(Instruction::RET(JumpCondition::Unconditional))
             }
@@ -1196,6 +1333,9 @@ impl Instruction {
             }
             0xD8 => {
                 Some(Instruction::RET(JumpCondition::C))
+            }
+            0xD9 => {
+                Some(Instruction::RETI)
             }
             0xE0 => {
                 Some(Instruction::LDH(LdhOperand::I8, LdhDirection::FromA))
@@ -1239,6 +1379,12 @@ impl Instruction {
             0xFE => {
                 Some(Instruction::CP(ArithmeticOperand::D8))
             }
+            0xE8 => {
+                Some(Instruction::ADD16SP)
+            }
+            0xE9 => {
+                Some(Instruction::JPHL)
+            }
             0xEA => {
                 Some(Instruction::LD(LoadType::IndirectByteFromA(
                             LoadIndirectByteOperand::Address)))
@@ -1268,6 +1414,8 @@ impl Instruction {
             }
             INC(_inc_type) => 1,
             DEC(_dec_type) => 1,
+            ADD16(_source) => 1,
+            ADD16SP => 2,
             LD(load_type) => {
                 match load_type {
                     LoadType::Byte(_target, source) => match source {
@@ -1294,15 +1442,22 @@ impl Instruction {
                     LdhOperand::Ci => 1,
                 }
             }
+            SWAP(_operand) => 2,
             BIT(_bit, _operand) => 2,
+            RES(_bit, _operand) => 2,
+            SET(_bit, _operand) => 2,
             RLA => 1,
             RL(_operand) => 2,
             RRA => 1,
             RR(_operand) => 2,
+            CPL => 1,
             JP(_condition) => 3,
+            JPHL => 1,
             JR(_condition) => 2,
             CALL(_condition) => 3,
+            RST(_) => 1,
             RET(_condition) => 1,
+            RETI => 1,
             PUSH(_u16_register) => 1,
             POP(_u16_register) => 1,
             DI => 1,
