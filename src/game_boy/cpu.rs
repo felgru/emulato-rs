@@ -387,7 +387,7 @@ impl CPU {
                 let carry = self.registers.a & 0x80 != 0;
                 self.registers.a <<= 1;
                 if self.registers.f & Flag::Carry as u8 != 0 {
-                    self.registers.a += 1;
+                    self.registers.a |= 1;
                 };
                 self.registers.f = if carry {
                     Flag::Carry as u8
@@ -401,8 +401,41 @@ impl CPU {
                 let carry = v & 0x80 != 0;
                 v <<= 1;
                 if self.registers.f & Flag::Carry as u8 != 0 {
-                    v += 1;
+                    v |= 1;
                 };
+                self.write_non_direct_arithmetic_operand(memory, r, v);
+                let mut f = 0;
+                if v == 0 {
+                    f |= Flag::Zero as u8;
+                }
+                if carry {
+                    f |= Flag::Carry as u8;
+                }
+                self.registers.f = f;
+            }
+            RLC(r) => {
+                self.pc += 2;
+                let mut v = self.load_non_direct_arithmetic_operand(memory, r);
+                let carry = v & 0x80 != 0;
+                v <<= 1;
+                if carry {
+                    v |= 1;
+                };
+                self.write_non_direct_arithmetic_operand(memory, r, v);
+                let mut f = 0;
+                if v == 0 {
+                    f |= Flag::Zero as u8;
+                }
+                if carry {
+                    f |= Flag::Carry as u8;
+                }
+                self.registers.f = f;
+            }
+            SLA(r) => {
+                self.pc += 2;
+                let mut v = self.load_non_direct_arithmetic_operand(memory, r);
+                let carry = v & 0x80 != 0;
+                v <<= 1;
                 self.write_non_direct_arithmetic_operand(memory, r, v);
                 let mut f = 0;
                 if v == 0 {
@@ -418,7 +451,7 @@ impl CPU {
                 let carry = self.registers.a & 0x01 != 0;
                 self.registers.a >>= 1;
                 if self.registers.f & Flag::Carry as u8 != 0 {
-                    self.registers.a += 0x80;
+                    self.registers.a |= 0x80;
                 };
                 self.registers.f = if carry {
                     Flag::Carry as u8
@@ -432,8 +465,57 @@ impl CPU {
                 let carry = v & 0x01 != 0;
                 v >>= 1;
                 if self.registers.f & Flag::Carry as u8 != 0 {
-                    v += 0x80;
+                    v |= 0x80;
                 };
+                self.write_non_direct_arithmetic_operand(memory, r, v);
+                let mut f = 0;
+                if v == 0 {
+                    f |= Flag::Zero as u8;
+                }
+                if carry {
+                    f |= Flag::Carry as u8;
+                }
+                self.registers.f = f;
+            }
+            RRC(r) => {
+                self.pc += 2;
+                let mut v = self.load_non_direct_arithmetic_operand(memory, r);
+                let carry = v & 0x01 != 0;
+                v >>= 1;
+                if carry {
+                    v |= 0x80;
+                };
+                self.write_non_direct_arithmetic_operand(memory, r, v);
+                let mut f = 0;
+                if v == 0 {
+                    f |= Flag::Zero as u8;
+                }
+                if carry {
+                    f |= Flag::Carry as u8;
+                }
+                self.registers.f = f;
+            }
+            SRA(r) => {
+                self.pc += 2;
+                let mut v = self.load_non_direct_arithmetic_operand(memory, r);
+                let carry = v & 0x01 != 0;
+                let b7 = v & 0x80;
+                v = (v >> 1) | b7;
+                self.write_non_direct_arithmetic_operand(memory, r, v);
+                let mut f = 0;
+                if v == 0 {
+                    f |= Flag::Zero as u8;
+                }
+                if carry {
+                    f |= Flag::Carry as u8;
+                }
+                self.registers.f = f;
+            }
+            SRL(r) => {
+                self.pc += 2;
+                let mut v = self.load_non_direct_arithmetic_operand(memory, r);
+                let carry = v & 0x01 != 0;
+                v >>= 1;
                 self.write_non_direct_arithmetic_operand(memory, r, v);
                 let mut f = 0;
                 if v == 0 {
@@ -1094,8 +1176,13 @@ enum Instruction {
     SET(Bit, NonDirectArithmeticOperand),
     RLA,
     RL(NonDirectArithmeticOperand),
+    RLC(NonDirectArithmeticOperand),
     RRA,
     RR(NonDirectArithmeticOperand),
+    RRC(NonDirectArithmeticOperand),
+    SLA(NonDirectArithmeticOperand),
+    SRA(NonDirectArithmeticOperand),
+    SRL(NonDirectArithmeticOperand),
     CPL,
     JP(JumpCondition),
     JPHL,
@@ -1121,6 +1208,14 @@ impl Instruction {
 
     fn from_byte_prefixed(instruction_byte: u8) -> Option<Self> {
         match instruction_byte {
+            0x00..=0x07 => {
+                let r = instruction_byte & 0b111;
+                Some(Instruction::RLC(r.into()))
+            }
+            0x08..=0x0F => {
+                let r = instruction_byte & 0b111;
+                Some(Instruction::RRC(r.into()))
+            }
             0x10..=0x17 => {
                 let r = instruction_byte & 0b111;
                 Some(Instruction::RL(r.into()))
@@ -1129,9 +1224,21 @@ impl Instruction {
                 let r = instruction_byte & 0b111;
                 Some(Instruction::RR(r.into()))
             }
+            0x20..=0x27 => {
+                let r = instruction_byte & 0b111;
+                Some(Instruction::SLA(r.into()))
+            }
+            0x28..=0x2F => {
+                let r = instruction_byte & 0b111;
+                Some(Instruction::SRA(r.into()))
+            }
             0x30..=0x37 => {
                 let r = instruction_byte & 0b111;
                 Some(Instruction::SWAP(r.into()))
+            }
+            038..=0x3F => {
+                let r = instruction_byte & 0b111;
+                Some(Instruction::SRL(r.into()))
             }
             0x40..=0x7F => {
                 let bit = (instruction_byte & 0b0011_1000) >> 3;
@@ -1148,7 +1255,6 @@ impl Instruction {
                 let r = instruction_byte & 0b111;
                 Some(Instruction::SET(bit.into(), r.into()))
             }
-            _ => None,
         }
     }
 
@@ -1448,8 +1554,13 @@ impl Instruction {
             SET(_bit, _operand) => 2,
             RLA => 1,
             RL(_operand) => 2,
+            RLC(_operand) => 2,
+            SLA(_operand) => 2,
             RRA => 1,
             RR(_operand) => 2,
+            RRC(_operand) => 2,
+            SRA(_operand) => 2,
+            SRL(_operand) => 2,
             CPL => 1,
             JP(_condition) => 3,
             JPHL => 1,
