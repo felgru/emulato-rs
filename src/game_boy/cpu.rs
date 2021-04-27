@@ -1298,7 +1298,7 @@ impl Instruction {
                 let r = (instruction_byte & 0b11_0000) >> 4;
                 Some(Instruction::ADD16(r.into()))
             }
-            0b01_000_001..=0b01_111_111 => {
+            0b01_000_000..=0b01_111_111 => {
                 let from = instruction_byte & 0b111;
                 let to = (instruction_byte & 0b111_000) >> 3;
                 Some(Instruction::LD(LoadType::Byte(to.into(), from.into())))
