@@ -64,68 +64,92 @@ impl CPU {
             ADD(operand) => {
                 self.pc += 1;
                 let operand = self.load_arithmetic_operand(memory, operand);
-                let (new_a, carry) = self.registers.a.overflowing_add(operand);
+                let a = self.registers.a;
+                let (new_a, carry) = a.overflowing_add(operand);
+                let half_carry = (a & 0xF) + (operand & 0xF) > 0xF;
                 self.registers.a = new_a;
                 let mut f = 0;
                 if new_a == 0 {
                     f |= Flag::Zero as u8;
                 }
+                if half_carry {
+                    f |= Flag::HalfCarry as u8;
+                }
                 if carry {
                     f |= Flag::Carry as u8;
                 }
-                // TODO: How is the HalfCarry flag set?
                 self.registers.f = f;
             }
             ADC(operand) => {
                 self.pc += 1;
                 let operand = self.load_arithmetic_operand(memory, operand);
+                let a = self.registers.a;
+                let old_carry = self.registers.f & Flag::Carry as u8 != 0;
                 let (new_a, carry) = {
-                    let (new_a, carry)
-                        = self.registers.a.overflowing_add(operand);
-                    if self.registers.f & Flag::Carry as u8 == 0 {
+                    let (new_a, carry) = a.overflowing_add(operand);
+                    if !old_carry {
                         (new_a, carry)
                     } else {
                         let (new_a, carry2) = new_a.overflowing_add(1);
                         (new_a, carry || carry2)
                     }
                 };
+                let half_carry
+                    = (a & 0xF) + (operand & 0xF) + (old_carry as u8) > 0xF;
                 self.registers.a = new_a;
                 let mut f = 0;
                 if new_a == 0 {
                     f |= Flag::Zero as u8;
                 }
+                if half_carry {
+                    f |= Flag::HalfCarry as u8;
+                }
                 if carry {
                     f |= Flag::Carry as u8;
                 }
-                // TODO: How is the HalfCarry flag set?
                 self.registers.f = f;
             }
             SUB(operand) => {
                 self.pc += 1;
                 let operand = self.load_arithmetic_operand(memory, operand);
-                let (new_a, carry) = self.registers.a.overflowing_sub(operand);
+                let a = self.registers.a;
+                let (new_a, carry) = a.overflowing_sub(operand);
+                let (_, half_carry) = (a & 0xF).overflowing_sub(operand & 0xF);
                 self.registers.a = new_a;
                 let mut f = Flag::Subtract as u8;
                 if new_a == 0 {
                     f |= Flag::Zero as u8;
                 }
+                if half_carry {
+                    f |= Flag::HalfCarry as u8;
+                }
                 if carry {
                     f |= Flag::Carry as u8;
                 }
-                // TODO: How is the HalfCarry flag set?
                 self.registers.f = f;
             }
             SBC(operand) => {
                 self.pc += 1;
                 let operand = self.load_arithmetic_operand(memory, operand);
+                let a = self.registers.a;
+                let old_carry = self.registers.f & Flag::Carry as u8 != 0;
                 let (new_a, carry) = {
-                    let (new_a, carry)
-                        = self.registers.a.overflowing_sub(operand);
-                    if self.registers.f & Flag::Carry as u8 == 0 {
+                    let (new_a, carry) = a.overflowing_sub(operand);
+                    if !old_carry {
                         (new_a, carry)
                     } else {
                         let (new_a, carry2) = new_a.overflowing_sub(1);
                         (new_a, carry || carry2)
+                    }
+                };
+                let half_carry = {
+                    let (a2, half_carry)
+                        = (a & 0xF).overflowing_sub(operand & 0xF);
+                    if !old_carry {
+                        half_carry
+                    } else {
+                        let (_, carry2) = a2.overflowing_sub(1);
+                        half_carry || carry2
                     }
                 };
                 self.registers.a = new_a;
@@ -133,10 +157,12 @@ impl CPU {
                 if new_a == 0 {
                     f |= Flag::Zero as u8;
                 }
+                if half_carry {
+                    f |= Flag::HalfCarry as u8;
+                }
                 if carry {
                     f |= Flag::Carry as u8;
                 }
-                // TODO: How is the HalfCarry flag set?
                 self.registers.f = f;
             }
             INC(inc_type) => {
@@ -148,15 +174,14 @@ impl CPU {
                         let (new, _carry) = value.overflowing_add(1);
                         self.write_non_direct_arithmetic_operand(memory,
                                                                  operand, new);
-                        let mut f = 0;
+                        let mut f = self.registers.f & Flag::Carry as u8;
                         if new == 0 {
                             f |= Flag::Zero as u8;
                         }
-                        // TODO: How is the HalfCarry flag set?
-                        let mask: u8 = Flag::Zero as u8
-                                     | Flag::Subtract as u8
-                                     | Flag::HalfCarry as u8;
-                        self.registers.f = (self.registers.f & !mask) | f;
+                        if (value & 0x0F) == 0x0F {
+                            f |= Flag::HalfCarry as u8;
+                        }
+                        self.registers.f = f;
                     }
                     IncDecType::IncDec16(operand) => {
                         let value = self.load_inc_dec_16_operand(operand);
@@ -174,15 +199,15 @@ impl CPU {
                         let (new, _carry) = value.overflowing_sub(1);
                         self.write_non_direct_arithmetic_operand(memory,
                                                                  operand, new);
-                        let mut f = Flag::Subtract as u8;
+                        let mut f = self.registers.f & Flag::Carry as u8
+                                  | Flag::Subtract as u8;
                         if new == 0 {
                             f |= Flag::Zero as u8;
                         }
-                        // TODO: How is the HalfCarry flag set?
-                        let mask: u8 = Flag::Zero as u8
-                                     | Flag::Subtract as u8
-                                     | Flag::HalfCarry as u8;
-                        self.registers.f = (self.registers.f & !mask) | f;
+                        if (value & 0x0F) == 0x00 {
+                            f |= Flag::HalfCarry as u8;
+                        }
+                        self.registers.f = f;
                     }
                     IncDecType::IncDec16(operand) => {
                         let value = self.load_inc_dec_16_operand(operand);
@@ -251,12 +276,16 @@ impl CPU {
             CP(operand) => {
                 self.pc += 1;
                 let operand = self.load_arithmetic_operand(memory, operand);
-                let (cp, carry) = self.registers.a.overflowing_sub(operand);
+                let a = self.registers.a;
+                let (cp, carry) = a.overflowing_sub(operand);
+                let (_, half_carry) = (a & 0xF).overflowing_sub(operand & 0xF);
                 let mut f = Flag::Subtract as u8;
                 if cp == 0 {
                     f |= Flag::Zero as u8;
                 }
-                // TODO: How is the HalfCarry flag set?
+                if half_carry {
+                    f |= Flag::HalfCarry as u8;
+                }
                 if carry {
                     f |= Flag::Carry as u8;
                 }
