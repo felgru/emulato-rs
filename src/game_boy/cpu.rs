@@ -411,6 +411,17 @@ impl CPU {
                     }
                 }
             }
+            RLCA => {
+                self.pc += 1;
+                let carry = self.registers.a & 0x80 != 0;
+                self.registers.a <<= 1;
+                let mut f = 0;
+                if carry {
+                    self.registers.a |= 1;
+                    f = Flag::Carry as u8;
+                }
+                self.registers.f = f;
+            }
             RLA => {
                 self.pc += 1;
                 let carry = self.registers.a & 0x80 != 0;
@@ -473,6 +484,17 @@ impl CPU {
                 if carry {
                     f |= Flag::Carry as u8;
                 }
+                self.registers.f = f;
+            }
+            RRCA => {
+                self.pc += 1;
+                let carry = self.registers.a & 0x01 != 0;
+                self.registers.a >>= 1;
+                let mut f = 0;
+                if carry {
+                    self.registers.a |= 0x80;
+                    f = Flag::Carry as u8;
+                };
                 self.registers.f = f;
             }
             RRA => {
@@ -595,7 +617,19 @@ impl CPU {
             CPL => {
                 self.pc += 1;
                 self.registers.a = !self.registers.a;
-                let f = Flag::Subtract as u8 | Flag::HalfCarry as u8;
+                let mask = (Flag::Subtract as u8 | Flag::HalfCarry as u8);
+                self.registers.f |= mask;
+            }
+            SCF => {
+                self.pc += 1;
+                let f = self.registers.f & Flag::Zero as u8
+                      | Flag::Carry as u8;
+                self.registers.f = f;
+            }
+            CCF => {
+                self.pc += 1;
+                let f = (self.registers.f ^ Flag::Carry as u8)
+                      & (Flag::Zero as u8 | Flag::Carry as u8);
                 self.registers.f = f;
             }
             JP(condition) => {
@@ -1203,9 +1237,11 @@ enum Instruction {
     BIT(Bit, NonDirectArithmeticOperand),
     RES(Bit, NonDirectArithmeticOperand),
     SET(Bit, NonDirectArithmeticOperand),
+    RLCA,
     RLA,
     RL(NonDirectArithmeticOperand),
     RLC(NonDirectArithmeticOperand),
+    RRCA,
     RRA,
     RR(NonDirectArithmeticOperand),
     RRC(NonDirectArithmeticOperand),
@@ -1213,6 +1249,8 @@ enum Instruction {
     SRA(NonDirectArithmeticOperand),
     SRL(NonDirectArithmeticOperand),
     CPL,
+    SCF,
+    CCF,
     JP(JumpCondition),
     JPHL,
     JR(JumpCondition),
@@ -1340,8 +1378,14 @@ impl Instruction {
                 let to = (instruction_byte & 0b110_000) >> 4;
                 Some(Instruction::LD(LoadType::IndirectByteToA(to.into())))
             }
+            0x07 => {
+                Some(Instruction::RLCA)
+            }
             0x17 => {
                 Some(Instruction::RLA)
+            }
+            0x0F => {
+                Some(Instruction::RRCA)
             }
             0x1F => {
                 Some(Instruction::RRA)
@@ -1355,14 +1399,20 @@ impl Instruction {
             0x28 => {
                 Some(Instruction::JR(JumpCondition::Z))
             }
-            0x2F => {
-                Some(Instruction::CPL)
-            }
             0x30 => {
                 Some(Instruction::JR(JumpCondition::NC))
             }
             0x38 => {
                 Some(Instruction::JR(JumpCondition::C))
+            }
+            0x2F => {
+                Some(Instruction::CPL)
+            }
+            0x37 => {
+                Some(Instruction::SCF)
+            }
+            0x3F => {
+                Some(Instruction::CCF)
             }
             0x80..=0x87 => {
                 let operand = instruction_byte & 0b111;
@@ -1581,16 +1631,20 @@ impl Instruction {
             BIT(_bit, _operand) => 2,
             RES(_bit, _operand) => 2,
             SET(_bit, _operand) => 2,
+            RLCA => 1,
             RLA => 1,
             RL(_operand) => 2,
             RLC(_operand) => 2,
             SLA(_operand) => 2,
+            RRCA => 1,
             RRA => 1,
             RR(_operand) => 2,
             RRC(_operand) => 2,
             SRA(_operand) => 2,
             SRL(_operand) => 2,
             CPL => 1,
+            SCF => 1,
+            CCF => 1,
             JP(_condition) => 3,
             JPHL => 1,
             JR(_condition) => 2,
