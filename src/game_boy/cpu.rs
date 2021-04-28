@@ -234,16 +234,42 @@ impl CPU {
             }
             ADD16SP => {
                 self.pc += 1;
-                let s = memory.read8(self.pc) as i8;
+                let s = memory.read8(self.pc);
                 self.pc += 1;
-                let (new_sp, carry)
-                    = (self.sp as i16).overflowing_add(s as i16);
-                self.sp = new_sp as u16;
+                let (new_sp, carry) = {
+                    let (_, carry) = (self.sp as u8).overflowing_add(s);
+                    let (new_sp, _)
+                        = (self.sp as i16).overflowing_add(s as i8 as i16);
+                    (new_sp as u16, carry)
+                };
                 let mut f = 0;
+                if (self.sp as u8 & 0xF) + (s as u8 & 0xF) > 0xF {
+                    f |= Flag::HalfCarry as u8;
+                }
                 if carry {
                     f |= Flag::Carry as u8;
                 }
-                // TODO: How is the HalfCarry flag set?
+                self.sp = new_sp;
+                self.registers.f = f;
+            }
+            ADD16SPinHL => {
+                self.pc += 1;
+                let s = memory.read8(self.pc);
+                self.pc += 1;
+                let (new_sp, carry) = {
+                    let (_, carry) = (self.sp as u8).overflowing_add(s);
+                    let (new_sp, _)
+                        = (self.sp as i16).overflowing_add(s as i8 as i16);
+                    (new_sp as u16, carry)
+                };
+                self.registers.write16(U16Register::HL, new_sp);
+                let mut f = 0;
+                if (self.sp as u8 & 0xF) + (s as u8 & 0xF) > 0xF {
+                    f |= Flag::HalfCarry as u8;
+                }
+                if carry {
+                    f |= Flag::Carry as u8;
+                }
                 self.registers.f = f;
             }
             AND(operand) => {
@@ -1271,6 +1297,7 @@ enum Instruction {
     DEC(IncDecType),
     ADD16(ArithmeticWordSource),
     ADD16SP,
+    ADD16SPinHL,
     LD(LoadType),
     LDH(LdhOperand, LdhDirection),
     SWAP(NonDirectArithmeticOperand),
@@ -1584,6 +1611,13 @@ impl Instruction {
             0xF3 => {
                 Some(Instruction::DI)
             }
+            0xF8 => {
+                Some(Instruction::ADD16SPinHL)
+            }
+            0xF9 => {
+                Some(Instruction::LD(LoadType::Word(
+                            LoadWordTarget::SP, LoadWordSource::HL)))
+            }
             0xFB => {
                 Some(Instruction::EI)
             }
@@ -1648,6 +1682,7 @@ impl Instruction {
             DEC(_dec_type) => 1,
             ADD16(_source) => 1,
             ADD16SP => 2,
+            ADD16SPinHL => 2,
             LD(load_type) => {
                 match load_type {
                     LoadType::Byte(_target, source) => match source {
