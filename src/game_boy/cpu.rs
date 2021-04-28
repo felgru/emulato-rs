@@ -222,11 +222,14 @@ impl CPU {
                 let operand = self.load_arithmetic_word_source(source);
                 let (new_hl, carry) = hl.overflowing_add(operand);
                 self.registers.write16(U16Register::HL, new_hl);
+                let half_carry = (hl & 0xFFF) + (operand & 0xFFF) > 0xFFF;
                 let mut f = self.registers.f & Flag::Zero as u8;
+                if half_carry {
+                    f |= Flag::HalfCarry as u8;
+                }
                 if carry {
                     f |= Flag::Carry as u8;
                 }
-                // TODO: How is the HalfCarry flag set?
                 self.registers.f = f;
             }
             ADD16SP => {
