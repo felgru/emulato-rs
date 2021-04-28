@@ -392,6 +392,12 @@ impl CPU {
                     };
                     self.registers.a = memory.read8(address);
                 }
+                LoadType::IndirectWordFromSP => {
+                    self.pc += 1;
+                    let address = memory.read16(self.pc);
+                    self.pc += 2;
+                    memory.write16(address, self.sp);
+                }
             }
             LDH(load_type, load_direction) => {
                 self.pc += 1;
@@ -616,6 +622,36 @@ impl CPU {
                 let v = self.load_non_direct_arithmetic_operand(memory, r)
                       | (bit as u8);
                 self.write_non_direct_arithmetic_operand(memory, r, v);
+            }
+            DAA => {
+                self.pc += 1;
+                let mut adjustment = 0;
+                let f = self.registers.f;
+                if f & Flag::HalfCarry as u8 != 0 {
+                    adjustment |= 0x06;
+                }
+                if f & Flag::Carry as u8 != 0 {
+                    adjustment |= 0x60;
+                }
+                if f & Flag::Subtract as u8 != 0 {
+                    self.registers.a -= adjustment;
+                } else {
+                    if self.registers.a & 0x0F > 0x09 {
+                        adjustment |= 0x06;
+                    }
+                    if self.registers.a > 0x99 {
+                        adjustment |= 0x60;
+                    }
+                    self.registers.a += adjustment;
+                }
+                let mut f = f & Flag::Subtract as u8;
+                if self.registers.a == 0 {
+                    f |= Flag::Zero as u8;
+                }
+                if adjustment & 0x60 != 0 {
+                    f |= Flag::Carry as u8;
+                }
+                self.registers.f = f;
             }
             CPL => {
                 self.pc += 1;
@@ -1141,6 +1177,7 @@ enum LoadType {
     Word(LoadWordTarget, LoadWordSource),
     IndirectByteFromA(LoadIndirectByteOperand),
     IndirectByteToA(LoadIndirectByteOperand),
+    IndirectWordFromSP,
 }
 
 #[derive(Debug)]
@@ -1251,6 +1288,7 @@ enum Instruction {
     SLA(NonDirectArithmeticOperand),
     SRA(NonDirectArithmeticOperand),
     SRL(NonDirectArithmeticOperand),
+    DAA,
     CPL,
     SCF,
     CCF,
@@ -1377,6 +1415,9 @@ impl Instruction {
                 let to = (instruction_byte & 0b110_000) >> 4;
                 Some(Instruction::LD(LoadType::IndirectByteFromA(to.into())))
             }
+            0x08 => {
+                Some(Instruction::LD(LoadType::IndirectWordFromSP))
+            }
             0x0A | 0x1A | 0x2A | 0x3A => {
                 let to = (instruction_byte & 0b110_000) >> 4;
                 Some(Instruction::LD(LoadType::IndirectByteToA(to.into())))
@@ -1407,6 +1448,9 @@ impl Instruction {
             }
             0x38 => {
                 Some(Instruction::JR(JumpCondition::C))
+            }
+            0x27 => {
+                Some(Instruction::DAA)
             }
             0x2F => {
                 Some(Instruction::CPL)
@@ -1622,6 +1666,7 @@ impl Instruction {
                         LoadIndirectByteOperand::Address => 3,
                         _ => 1,
                     }
+                    LoadType::IndirectWordFromSP => 3,
                 }
             }
             LDH(operand, _direction) => {
@@ -1645,6 +1690,7 @@ impl Instruction {
             RRC(_operand) => 2,
             SRA(_operand) => 2,
             SRL(_operand) => 2,
+            DAA => 1,
             CPL => 1,
             SCF => 1,
             CCF => 1,
