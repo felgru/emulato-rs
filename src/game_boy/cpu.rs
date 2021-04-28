@@ -687,7 +687,6 @@ impl CPU {
             POP(register) => {
                 self.pc += 1;
                 let value = self.pop(memory);
-                // TODO: If we pop to AF, the lowest 4 bits should be set to 0
                 self.registers.write16(register, value);
             }
             DI => {
@@ -849,6 +848,7 @@ pub enum U16Register {
 /// BC    B    C    BC
 /// DE    D    E    DE
 /// HL    H    L    HL
+#[derive(Debug)]
 pub struct Registers {
     a: u8,
     f: u8,
@@ -920,7 +920,7 @@ impl Registers {
         match register {
             AF => {
                 self.a = high;
-                self.f = low;
+                self.f = low & 0xF0; // The lowest 4 bits of F are always 0
             }
             BC => {
                 self.b = high;
