@@ -81,15 +81,7 @@ impl GameBoy {
     }
 
     fn handle_interrupts(&mut self) -> bool {
-        if !self.cpu.interrupts_are_enabled() {
-            return false;
-        }
-        if let Some(interrupt) = self.memory.handle_interrupts() {
-            self.cpu.call_interrupt(&mut self.memory, interrupt);
-            true
-        } else {
-            false
-        }
+        self.cpu.handle_interrupts(&mut self.memory)
     }
 }
 

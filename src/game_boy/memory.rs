@@ -327,6 +327,11 @@ impl MemoryBus {
          (palette >> 6) & 0b11]
     }
 
+    pub fn get_requested_interrupts(&self) -> u8 {
+        let requests = self.read8(0xFF0F);
+        self.read8(0xFFFF) & requests & 0x1F
+    }
+
     pub fn handle_interrupts(&mut self) -> Option<InterruptAddress> {
         let mut requests = self.read8(0xFF0F);
         let interrupts = self.read8(0xFFFF) & requests & 0x1F;

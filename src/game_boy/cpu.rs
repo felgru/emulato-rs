@@ -10,6 +10,7 @@ pub struct CPU {
     sp: u16, //< stack pointer
     pc: u16, //< program counter
     ime: bool,
+    halt: bool,
 }
 
 impl CPU {
@@ -19,10 +20,14 @@ impl CPU {
             sp: 0xFFFE,
             pc: 0,
             ime: false,
+            halt: false,
         }
     }
 
     pub fn step(&mut self, memory: &mut MemoryBus) {
+        if self.halt {
+            return
+        }
         let instruction = {
             let mut instruction_byte = memory.read8(self.pc);
             let prefixed = instruction_byte == 0xCB;
@@ -709,7 +714,6 @@ impl CPU {
             }
             JR(condition) => {
                 let e = memory.read8(self.pc + 1);
-                // TODO: is e to be interpreted as 2s complement?
                 let e = e as i8;
                 self.pc += 2;
                 if self.test_jump_condition(condition) {
@@ -758,6 +762,10 @@ impl CPU {
             EI => {
                 self.pc += 1;
                 self.ime = true;
+            }
+            HALT => {
+                self.pc += 1;
+                self.halt = true;
             }
         }
     }
@@ -869,15 +877,30 @@ impl CPU {
         }
     }
 
-    pub fn interrupts_are_enabled(&self) -> bool {
+    fn interrupts_are_enabled(&self) -> bool {
         self.ime
     }
 
-    pub fn call_interrupt(&mut self, memory: &mut MemoryBus,
-                          interrupt: InterruptAddress) {
+    fn call_interrupt(&mut self, memory: &mut MemoryBus,
+                      interrupt: InterruptAddress) {
         self.ime = false;
         self.push(memory, self.pc);
         self.pc = interrupt as u16;
+    }
+
+    pub fn handle_interrupts(&mut self, memory: &mut MemoryBus) -> bool {
+        if self.halt && memory.get_requested_interrupts() != 0 {
+            self.halt = false;
+        }
+        if !self.interrupts_are_enabled() {
+            return false;
+        }
+        if let Some(interrupt) = memory.handle_interrupts() {
+            self.call_interrupt(memory, interrupt);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -1330,6 +1353,8 @@ enum Instruction {
     POP(U16Register),
     DI,
     EI,
+    HALT,
+    // TODO: Add STOP
 }
 
 impl Instruction {
@@ -1433,7 +1458,11 @@ impl Instruction {
                 let r = (instruction_byte & 0b11_0000) >> 4;
                 Some(Instruction::ADD16(r.into()))
             }
-            0b01_000_000..=0b01_111_111 => {
+            0x76 => {
+                Some(Instruction::HALT)
+            }
+            0b01_000_000..=0b01_111_111
+                if instruction_byte != 0x76 => {
                 let from = instruction_byte & 0b111;
                 let to = (instruction_byte & 0b111_000) >> 3;
                 Some(Instruction::LD(LoadType::Byte(to.into(), from.into())))
@@ -1740,6 +1769,7 @@ impl Instruction {
             POP(_u16_register) => 1,
             DI => 1,
             EI => 1,
+            HALT => 1,
         }
     }
 }
