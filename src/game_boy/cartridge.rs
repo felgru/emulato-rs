@@ -273,14 +273,27 @@ impl MemoryControllerRegisters for MBC1 {
                 if bank == 0 {
                     bank += 1;
                 }
-                self.rom_bank = bank;
+                eprintln!("switching to ROM bank {}", bank);
+                self.rom_bank &= 0xE0;
+                self.rom_bank |= bank;
             }
             0x4000..=0x5FFF => {
                 // RAM Bank Number | Upper Bits of ROM Bank Number
-                unimplemented!("Setting RAM Banking Number/Upper bits fo ROM banking Number to {:0>2X}.",
-                               value);
+                let value = value & 0x03;
+                match self.banking_mode {
+                    MBC1BankingMode::Simple => {
+                        // Upper Bits of ROM Bank Number
+                        self.rom_bank &= 0x1F;
+                        self.rom_bank |= value << 5;
+                    }
+                    MBC1BankingMode::Advanced => {
+                        // RAM Bank Number
+                        self.ram_bank = value;
+                    }
+                }
             }
             0x6000..=0x7FFF => { // Banking Mode Select
+                eprintln!("Select banking mode 0x{:0>2X}", value);
                 self.banking_mode = value.into();
             }
             _ => unreachable!("{:0>4X} is not a cartridge register.", address),
