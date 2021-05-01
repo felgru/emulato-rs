@@ -53,30 +53,62 @@ impl MemoryBus {
                 // 0xA000–0xBFFF  SRAM  Cartridge RAM
                 self.cartridge.read8(address)
             }
-            // 0xC000–0xCFFF  WRAM0  Working RAM
-            // 0xD000–0xDFFF  WRAMX  Working RAM
-            // 0xE000–0xFDFF  ECHO  echos Working RAM, discouraged to be used
-            // 0xFE00–0xFE9F  OAM  Object Attribute Memory (description of sprites)
-            // 0xFEA0–0xFEFF  UNUSED  (reading returns 0, writing does nothing)
-            // 0xFF00–0xFF7F  I/O Registers
             0x8000..=0x9FFF => {
                 // 0x8000–0x9FFF  VRAM
                 // (0x8000–0x97FF  Tile RAM)
                 // (0x9800–0x9FFF  Background Map)
                 self.memory[address as usize]
             }
-            0xC000..=0xFF0E => {
+            0xC000..=0xDFFF => { // Working RAM
+                // 0xC000–0xCFFF  WRAM0  Working RAM
+                // 0xD000–0xDFFF  WRAMX  Working RAM (switchable banks on GBC)
+                self.memory[address as usize]
+            }
+            // 0xE000–0xFDFF  ECHO  echos Working RAM, discouraged to be used
+            // 0xFE00–0xFE9F  OAM  Object Attribute Memory (description of sprites)
+            // 0xFEA0–0xFEFF  UNUSED  (reading returns 0, writing does nothing)
+            0xE000..=0xFEFF => {
+                unimplemented!("reading from {:0>4X} not implemented, yet.",
+                               address);
+            }
+            // 0xFF00–0xFF7F  I/O Registers
+            0xFF00 => { // Joypad
+                // TODO: Update on Joypad register on keypress.
+                self.memory[address as usize]
+            }
+            0xFF01..=0xFF03 => {
+                unimplemented!("reading from {:0>4X} not implemented, yet.",
+                               address);
+            }
+            0xFF04..=0xFF07 => { // Timer and Divider Registers
+                // 0xFF04  DIV – Divider Register
+                // 0xFF05  TIMA – Timer Counter
+                // 0xFF06  TMA – Timer Modulo
+                // 0xFF07  TAC – Timer Control
+                self.memory[address as usize]
+            }
+            0xFF08..=0xFF0E => {
                 unimplemented!("reading from {:0>4X} not implemented, yet.",
                                address);
             }
             0xFF0F => { // IF – Interrupt Flag
                 self.memory[address as usize]
             }
-            0xFF10..=0xFF41 => {
+            0xFF10..=0xFF26 => { // Sound
+                // TODO: ignoring sound for now
+                0x00
+            }
+            0xFF27..=0xFF2F => {
                 unimplemented!("reading from {:0>4X} not implemented, yet.",
                                address);
             }
-            0xFF42..=0xFF4B => { // LCD Position and scrolling
+            0xFF30..=0xFF3F => { // Wave Form RAM
+                // TODO: ignoring sound for now
+                0x00
+            }
+            0xFF40..=0xFF4B => { // LCD Status
+                // FF40 - LCD Control (R/W)
+                // FF41 - LCD Status (R/W)
                 // FF42 - SCY (Scroll Y) (R/W)
                 // FF43 - SCX (Scroll X) (R/W)
                 // FF44 - LY (LCDC Y-Coordinate) (R)
@@ -113,7 +145,7 @@ impl MemoryBus {
             }
             0xC000..=0xDFFF => { // Working RAM
                 // 0xC000–0xCFFF  WRAM0  Working RAM
-                // 0xD000–0xDFFF  WRAMX  Working RAM
+                // 0xD000–0xDFFF  WRAMX  Working RAM (switchable banks on GBC)
                 self.memory[address as usize] = value;
             }
             0xE000..=0xFDFF => { // Echo
@@ -127,10 +159,34 @@ impl MemoryBus {
             }
             0xFF00..=0xFF7F => { // I/O Registers
                 match address {
+                    0xFF00 => { // Joypad
+                        let mem: &mut u8 = &mut self.memory[address as usize];
+                        let value = value & 0x30 | *mem & 0x0F;
+                        *mem = value;
+                    }
+                    0xFF01..=0xFF02 => { // Serial Transfer
+                        // 0xFF01  SB – Serial Transfer Data
+                        // 0xFF02  SC – Serial Transfer Control
+                        self.memory[address as usize] = value;
+                    }
+                    0xFF04 => { // DIV – Divider Register
+                        // Writing any value to DIV register resets it to 0.
+                        // https://gbdev.io/pandocs/#ff04-div-divider-register-r-w
+                        self.memory[address as usize] = 0;
+                    }
+                    0xFF05..=0xFF07 => {
+                        // 0xFF05 TIMA – Timer Counter
+                        // 0xFF06 TMA – Timer Modulo
+                        // 0xFF07 TAC – Timer Control
+                        self.memory[address as usize] = value;
+                    }
                     0xFF0F => { // IF – Interrupt Flag
                         self.memory[address as usize] = value;
                     }
                     0xFF10..=0xFF26 => { // Sound
+                        // TODO: ignoring sound for now
+                    }
+                    0xFF30..=0xFF3F => { // Wave Form RAM
                         // TODO: ignoring sound for now
                     }
                     0xFF40 => {
@@ -152,8 +208,19 @@ impl MemoryBus {
                     }
                     0xFF46 => {
                         // Object Attribute Memory (OAM) DMA Control Register
-                        unimplemented!("Writing {:0>4X} to OAM DMA register.",
-                                       value);
+                        // TODO: This is a simplification of the DMA transfer.
+                        //       Normally it would take 160 cycles during which
+                        //       the CPU continues execution but only has
+                        //       access to HRAM.
+                        eprintln!("OAM transfer from {0:0>2X}00–{0:0>2X}9F.",
+                                  value);
+                        let source_start = (value as u16) << 8;
+                        for (source, target)
+                            in (source_start..=source_start+0x9F)
+                                .zip(0xFE00..=0xFE9F) {
+                            let value = self.read8(source);
+                            self.write8(target, value);
+                        }
                     }
                     0xFF47..=0xFF49 => {
                         // 0xFF47: BGP (BG Palette Data)
@@ -176,19 +243,20 @@ impl MemoryBus {
                         eprintln!("Wrting {:0>2X} to undocumented I/O register {:0>4X}.",
                                   value, address);
                     }
-                    _ => unimplemented!("Writing to I/O register {:0>4X} not implemented.",
-                                        address),
+                    _ => unimplemented!("Writing {:0>2X} to I/O register {:0>4X} not implemented.",
+                                        value, address),
                 }
             }
             0xFF80..=0xFFFE => { // HRAM
                 self.memory[address as usize] = value;
             }
             0xFFFF => { // IE Register
-                if value == 1 { // VBLANK
+                if value <= 1 { // VBLANK or no interrupt
                     self.memory[address as usize] = value;
                 } else {
                     unimplemented!(
-                        "Writing non-VBlank to IE register not implemented.");
+                        "Writing {:0>2X} to IE register not implemented.",
+                        value);
                 }
             }
         }

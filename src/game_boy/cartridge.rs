@@ -266,6 +266,12 @@ impl MemoryControllerRegisters for MBC1 {
             0x0000..=0x1FFF => { // RAM Enable
                 // 0x00  Disable RAM (default)
                 // 0x0A  Enable RAM
+                match value {
+                    0x00 => eprintln!("disable cartridge RAM."),
+                    0x0A => eprintln!("enable cartridge RAM."),
+                    _ => eprintln!("Unexpected RAM enable/disable value {}",
+                                   value),
+                }
             }
             0x2000..=0x3FFF => { // ROM Bank Number
                 // TODO: mask with max bits required for num_rom_banks
