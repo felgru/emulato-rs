@@ -149,6 +149,7 @@ pub enum MemoryControllerModel {
 enum MemoryController {
     NoController,
     MBC1(MBC1),
+    MBC3(MBC3),
 }
 
 impl MemoryController {
@@ -158,6 +159,7 @@ impl MemoryController {
         match controller_model {
             Model::NoController => Self::NoController,
             Model::MBC1 => Self::MBC1(MBC1::from_cartridge_header(header)),
+            Model::MBC3 => Self::MBC3(MBC3::from_cartridge_header(header)),
             _ => unimplemented!("Memory controller {:?} not handled yet.",
                                 controller_model),
         }
@@ -170,6 +172,9 @@ impl MemoryController {
             MBC1(mbc1) => {
                 rom[address as usize - 0x4000 + mbc1.rom_bank_offset()]
             }
+            MBC3(mbc3) => {
+                rom[address as usize - 0x4000 + mbc3.rom_bank_offset()]
+            }
         }
     }
 
@@ -179,6 +184,9 @@ impl MemoryController {
             NoController => ram[address as usize],
             MBC1(mbc1) => {
                 ram[address as usize - 0xA000 + mbc1.ram_bank_offset()]
+            }
+            MBC3(mbc3) => {
+                ram[address as usize - 0xA000 + mbc3.ram_bank_offset()]
             }
         }
     }
@@ -190,6 +198,7 @@ impl MemoryController {
                 "Writing {:0>2X} to {:0>4X} without memory controller.",
                 value, address),
             MBC1(mbc1) => mbc1.register_write8(address, value),
+            MBC3(mbc3) => mbc3.register_write8(address, value),
         }
     }
 
@@ -201,6 +210,10 @@ impl MemoryController {
                 value, address),
             MBC1(mbc1) => {
                 ram[address as usize - 0xA000 + mbc1.ram_bank_offset()]
+                    = value;
+            }
+            MBC3(mbc3) => {
+                ram[address as usize - 0xA000 + mbc3.ram_bank_offset()]
                     = value;
             }
         }
@@ -301,6 +314,78 @@ impl MemoryControllerRegisters for MBC1 {
             0x6000..=0x7FFF => { // Banking Mode Select
                 eprintln!("Select banking mode 0x{:0>2X}", value);
                 self.banking_mode = value.into();
+            }
+            _ => unreachable!("{:0>4X} is not a cartridge register.", address),
+        }
+    }
+
+    fn rom_bank_offset(&self) -> usize {
+        0x4000 * self.rom_bank as usize
+    }
+
+    fn ram_bank_offset(&self) -> usize {
+        0x2000 * self.ram_bank as usize
+    }
+}
+
+struct MBC3 {
+    rom_bank: u8,
+    ram_bank: u8,
+    num_rom_banks: u16,
+    num_ram_banks: u8,
+}
+
+impl MBC3 {
+    fn from_cartridge_header(header: &CartridgeHeader) -> Self {
+        let num_rom_banks = header.num_rom_banks();
+        let num_ram_banks = header.num_ram_banks();
+        Self{
+            rom_bank: 1,
+            ram_bank: 0,
+            num_rom_banks,
+            num_ram_banks,
+        }
+    }
+}
+
+impl MemoryControllerRegisters for MBC3 {
+    fn register_write8(&mut self, address: u16, value: u8) {
+        match address {
+            0x0000..=0x1FFF => { // RAM and Timer Enable
+                // 0x00  Disable RAM (default)
+                // 0x0A  Enable RAM
+                match value {
+                    0x00 => eprintln!("disable cartridge RAM."),
+                    0x0A => eprintln!("enable cartridge RAM."),
+                    _ => eprintln!("Unexpected RAM enable/disable value {}",
+                                   value),
+                }
+            }
+            0x2000..=0x3FFF => { // ROM Bank Number
+                // TODO: mask with max bits required for num_rom_banks
+                let mut bank = value & 0x7F;
+                if bank == 0 {
+                    bank += 1;
+                }
+                eprintln!("switching to ROM bank {}", bank);
+                self.rom_bank = bank;
+            }
+            0x4000..=0x5FFF => {
+                // RAM Bank Number | RTC Register Select
+                match value {
+                    0x00..=0x03 => { // RAM Bank Number
+                        self.ram_bank = value;
+                    }
+                    0x08..=0x0C => {
+                        unimplemented!("Mapping RTC register {:0>2X}.",
+                                       value);
+                    }
+                    _ => panic!("Unexpected RAM Bank/RTC Register: {:0>2X}.",
+                                value),
+                }
+            }
+            0x6000..=0x7FFF => { // Latch Clock Data
+                unimplemented!("Latching clock data.");
             }
             _ => unreachable!("{:0>4X} is not a cartridge register.", address),
         }
