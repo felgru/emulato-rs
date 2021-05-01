@@ -85,7 +85,6 @@ fn fetch_bg_tile_line(memory: &MemoryBus, lcdc: LcdControl, tile: u8,
                       in_tile_y: u8) -> u16 {
     let (offset, signed)
         = lcdc.bg_and_window_tile_data_offset_and_addressing();
-    let orig_tile = tile;
     let tile_size = 16;
     let tile = if signed {
         (offset as i16 + (tile as i8) as i16 * tile_size as i16) as u16
@@ -94,10 +93,6 @@ fn fetch_bg_tile_line(memory: &MemoryBus, lcdc: LcdControl, tile: u8,
     };
     let low = tile + (2 * in_tile_y) as u16;
     let res = memory.read16(low);
-    if orig_tile != 0 {
-        eprintln!("drawing non-zero tile {:0>2X}: {:0>4X}@{:0>4X}",
-               orig_tile, res, low);
-    }
     res
 }
 

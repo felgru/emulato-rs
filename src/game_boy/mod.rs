@@ -45,11 +45,9 @@ impl GameBoy {
         let frame_time = Duration::from_micros((1_000_000. / FRAMERATE as f64)
                                                as u64);
         let mut last_frame_time = Instant::now();
-        let mut frame = 0;
         let mut scanline_cycles = 0;
         loop {
             for scanline in 0..154 {
-                eprintln!("frame {:>3} scanline {:>3}", frame, scanline);
                 self.memory.set_ly(scanline);
                 if scanline == 144 {
                     // request VBlank interrupt
@@ -66,7 +64,6 @@ impl GameBoy {
                 }
                 scanline_cycles %= CPU_CYCLES_PER_SCANLINE;
             }
-            frame += 1;
             let current_frame_time = Instant::now();
             let elapsed = current_frame_time.duration_since(last_frame_time);
             if let Some(sleep_duration) = frame_time.checked_sub(elapsed) {
