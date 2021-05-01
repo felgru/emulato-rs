@@ -536,6 +536,11 @@ impl LcdStatus {
     fn mode(&self) -> LcdMode {
         (self.flags & 3).into()
     }
+
+    pub fn set_mode(&mut self, mode: LcdMode) {
+        self.flags &= 0xFF - 0x03;
+        self.flags |= mode as u8;
+    }
 }
 
 #[repr(u16)]

@@ -6,7 +6,6 @@ use super::graphics_data;
 use super::memory::{LcdControl, MemoryBus};
 
 pub struct PPU {
-    mode: LcdMode,
     display: display::Display,
     tile_buffer: [u8; 21],
     bg_palette: [u8; 4],
@@ -15,7 +14,6 @@ pub struct PPU {
 impl PPU {
     pub fn new() -> Self {
         Self{
-            mode: LcdMode::VBlank,
             display: display::Display::new(),
             tile_buffer: [0; 21],
             bg_palette: [0; 4],

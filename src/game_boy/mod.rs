@@ -47,14 +47,30 @@ impl GameBoy {
         let mut last_frame_time = Instant::now();
         let mut scanline_cycles = 0;
         loop {
-            for scanline in 0..154 {
+            for scanline in 0..144 {
                 self.memory.set_ly(scanline);
-                if scanline == 144 {
-                    // request VBlank interrupt
-                    let requests = self.memory.read8(0xFF0F) | 1;
-                    self.memory.write8(0xFF0F, requests);
+                self.memory.lcd_status().set_mode(ppu::LcdMode::SearchingOAM);
+                while scanline_cycles <= 80 {
+                    self.cpu.step(&mut self.memory);
+                    scanline_cycles += 4;
+                    if self.handle_interrupts() {
+                        scanline_cycles += 5 * 4;
+                    }
                 }
+                self.memory.lcd_status().set_mode(ppu::LcdMode::TransferringDataToLcdController);
+                // Approximate mode duration, it actually depends on number
+                // of objects to paint, etc.
                 self.ppu.paint_line(&mut self.memory);
+                while scanline_cycles <= 280 {
+                    self.cpu.step(&mut self.memory);
+                    scanline_cycles += 4;
+                    if self.handle_interrupts() {
+                        scanline_cycles += 5 * 4;
+                    }
+                }
+                self.memory.lcd_status().set_mode(ppu::LcdMode::HBlank);
+                // TODO: This does not add up exactly, as we assume 60FPS
+                //       here, but it are actually slightly less.
                 while scanline_cycles < CPU_CYCLES_PER_SCANLINE {
                     self.cpu.step(&mut self.memory);
                     scanline_cycles += 4;
@@ -73,6 +89,23 @@ impl GameBoy {
             self.ppu.refresh(&mut self.emulator_window);
             if self.emulator_window.is_esc_pressed() {
                 break;
+            }
+            for scanline in 144..154 {
+                self.memory.set_ly(scanline);
+                if scanline == 144 {
+                    self.memory.lcd_status().set_mode(ppu::LcdMode::VBlank);
+                    // request VBlank interrupt
+                    let requests = self.memory.read8(0xFF0F) | 1;
+                    self.memory.write8(0xFF0F, requests);
+                }
+                while scanline_cycles < CPU_CYCLES_PER_SCANLINE {
+                    self.cpu.step(&mut self.memory);
+                    scanline_cycles += 4;
+                    if self.handle_interrupts() {
+                        scanline_cycles += 5 * 4;
+                    }
+                }
+                scanline_cycles %= CPU_CYCLES_PER_SCANLINE;
             }
         }
     }
