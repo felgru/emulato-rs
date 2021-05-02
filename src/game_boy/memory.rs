@@ -245,7 +245,7 @@ impl MemoryBus {
                     }
                     0xFF72..=0xFF7F => { // Undocumented I/O registers
                         // TODO: Improve handling of undocumented I/O registers
-                        eprintln!("Wrting {:0>2X} to undocumented I/O register {:0>4X}.",
+                        eprintln!("Writing {:0>2X} to undocumented I/O register {:0>4X}.",
                                   value, address);
                     }
                     _ => unimplemented!("Writing {:0>2X} to I/O register {:0>4X} not implemented.",
@@ -350,10 +350,10 @@ impl MemoryBus {
                     let tile = self.read16(row_start + 2 * row
                                            + tile_size * tile_col);
                     let p = ((tile >> 14) & 0b10) | ((tile >> 7) & 1);
-                    write!(buffer, "{}", p)?;
+                    write!(buffer, "{}", 3 - p)?;
                     for i in 1..8 {
                         let p = ((tile >> 14-i) & 0b10) | ((tile >> 7-i) & 1);
-                        write!(buffer, " {}", p)?;
+                        write!(buffer, " {}", 3 - p)?;
                     }
                     writeln!(buffer)?;
                 }
@@ -385,10 +385,10 @@ impl MemoryBus {
                         = lcdc.get_bg_or_window_tile_address(tiles[tile_col]);
                     let tile = self.read16(tile_address + 2 * row);
                     let p = ((tile >> 14) & 0b10) | ((tile >> 7) & 1);
-                    write!(buffer, "{}", p)?;
+                    write!(buffer, "{}", 3 - p)?;
                     for i in 1..8 {
                         let p = ((tile >> 14-i) & 0b10) | ((tile >> 7-i) & 1);
-                        write!(buffer, " {}", p)?;
+                        write!(buffer, " {}", 3 - p)?;
                     }
                     writeln!(buffer)?;
                 }
