@@ -1,3 +1,4 @@
+pub mod boot_rom;
 pub mod cartridge;
 pub mod commandline;
 pub mod cpu;
@@ -134,9 +135,15 @@ impl GameBoyBuilder {
     }
 
     pub fn load_boot_rom(mut self, file: File) -> io::Result<Self> {
-        let boot_rom = memory::MemoryBus::load_boot_rom(file)?;
+        let boot_rom = boot_rom::load_boot_rom(file)?;
         self.boot_rom = Some(boot_rom);
         Ok(self)
+    }
+
+    pub fn use_fast_boot_rom(mut self) -> Self {
+        let boot_rom = boot_rom::fast_boot_rom();
+        self.boot_rom = Some(boot_rom);
+        self
     }
 
     pub fn load_cartridge(mut self, file: File) -> io::Result<Self> {

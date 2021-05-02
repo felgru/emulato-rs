@@ -28,6 +28,8 @@ pub fn run_game_boy_from_subcommand(subcommand: &ArgMatches) {
     if let Some(boot_rom) = subcommand.value_of("boot-rom") {
         let f = File::open(boot_rom).unwrap();
         builder = builder.load_boot_rom(f).unwrap();
+    } else {
+        builder = builder.use_fast_boot_rom();
     }
     let mut game_boy = builder.build();
     game_boy.run();

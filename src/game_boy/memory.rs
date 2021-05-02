@@ -329,12 +329,6 @@ impl MemoryBus {
         self.memory[0xFF47]
     }
 
-    pub fn load_boot_rom(mut file: File) -> io::Result<[u8; 0x100]> {
-        let mut rom = [0; 0x100];
-        file.read(&mut rom)?;
-        Ok(rom)
-    }
-
     pub fn disable_boot_rom(&mut self) {
         self.boot_rom = None;
     }
