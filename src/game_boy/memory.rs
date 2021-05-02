@@ -191,13 +191,18 @@ impl MemoryBus {
                     }
                     0xFF40 => {
                         // LCD Control
-                        // TODO: handle flags to set LCD state
                         // https://gbdev.io/pandocs/#lcd-control
+                        // TODO: Swith display on/off according to bit 7.
+                        // assert!(value & 0x80 != 0,
+                        //         "Switching off LCD not handled.");
                         self.memory[address as usize] = value;
                         // unimplemented!("LCDC = {:0>4X}", value);
                     }
                     0xFF41 => { // LCD Status
-                        self.memory[address as usize] = value;
+                        // lowest 3 bits are read-only
+                        let value = value & !0x07;
+                        self.memory[address as usize] &= 0x07;
+                        self.memory[address as usize] |= value;
                     }
                     0xFF44 => { // LY (LCDC Y-Coordinate) (R)
                         panic!("Trying to write to LY");
@@ -275,8 +280,9 @@ impl MemoryBus {
         LcdControl{flags: self.memory[0xFF40]}
     }
 
-    pub fn lcd_status(&self) -> LcdStatus {
-        LcdStatus{flags: self.memory[0xFF41]}
+    pub fn lcd_status(&mut self) -> LcdStatus {
+        LcdStatus{flags: &mut self.memory[0xFF41]}
+    }
     }
 
     pub fn scy(&self) -> u8 {
@@ -293,6 +299,8 @@ impl MemoryBus {
 
     pub fn set_ly(&mut self, ly: u8) {
         self.memory[0xFF44] = ly;
+        let equal = ly == self.lyc();
+        self.lcd_status().update_lyc_eq_ly(equal);
     }
 
     pub fn lyc(&self) -> u8 {
@@ -508,38 +516,48 @@ impl LcdControl {
 ///         1: In VBlank
 ///         2: Searching OAM
 ///         3: Transferring Data to LCD Controller
-pub struct LcdStatus {
-    flags: u8,
+pub struct LcdStatus<'a> {
+    flags: &'a mut u8,
 }
 
-impl LcdStatus {
+impl LcdStatus<'_> {
     fn lyc_eq_ly_interrupt_set(&self) -> bool {
-        self.flags & (1 << 6) != 0
+        *self.flags & (1 << 6) != 0
     }
 
     fn mode2_oam_interrupt_set(&self) -> bool {
-        self.flags & (1 << 5) != 0
+        *self.flags & (1 << 5) != 0
     }
 
     fn mode1_vblank_interrupt_set(&self) -> bool {
-        self.flags & (1 << 4) != 0
+        *self.flags & (1 << 4) != 0
     }
 
     fn mode0_hblank_interrupt_set(&self) -> bool {
-        self.flags & (1 << 3) != 0
+        *self.flags & (1 << 3) != 0
     }
 
-    fn lyc_eq_ly(&self) -> bool {
-        self.flags & (1 << 2) != 0
+    fn update_lyc_eq_ly(&mut self, set: bool) {
+        if set {
+            *self.flags |= (1 << 2);
+        } else {
+            *self.flags &= !(1 << 2);
+        }
     }
 
     fn mode(&self) -> LcdMode {
-        (self.flags & 3).into()
+        (*self.flags & 3).into()
     }
 
-    pub fn set_mode(&mut self, mode: LcdMode) {
-        self.flags &= 0xFF - 0x03;
-        self.flags |= mode as u8;
+    pub fn set_mode(&mut self, mode: LcdMode) -> bool {
+        *self.flags &= !0x03;
+        *self.flags |= mode as u8;
+        match mode {
+            LcdMode::HBlank => self.mode0_hblank_interrupt_set(),
+            LcdMode::VBlank => self.mode1_vblank_interrupt_set(),
+            LcdMode::SearchingOAM => self.mode2_oam_interrupt_set(),
+            LcdMode::TransferringDataToLcdController => false,
+        }
     }
 }
 
