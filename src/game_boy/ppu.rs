@@ -81,14 +81,7 @@ impl PPU {
 
 fn fetch_bg_tile_line(memory: &MemoryBus, lcdc: LcdControl, tile: u8,
                       in_tile_y: u8) -> u16 {
-    let (offset, signed)
-        = lcdc.bg_and_window_tile_data_offset_and_addressing();
-    let tile_size = 16;
-    let tile = if signed {
-        (offset as i16 + (tile as i8) as i16 * tile_size as i16) as u16
-    } else {
-        offset + tile as u16 * tile_size
-    };
+    let tile = lcdc.get_bg_or_window_tile_address(tile);
     let low = tile + (2 * in_tile_y) as u16;
     let res = memory.read16(low);
     res

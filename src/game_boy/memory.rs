@@ -367,8 +367,6 @@ impl MemoryBus {
                                       buffer: &mut W) -> std::io::Result<()> {
         let lcdc = self.lcdc();
         let palette = Self::expand_palette(self.bg_palette());
-        let (data_start, signed)
-            = lcdc.bg_and_window_tile_data_offset_and_addressing();
         let tile_map_start = lcdc.bg_tilemap_start();
         writeln!(buffer, "P2")?;
         writeln!(buffer, "256 256")?;
@@ -383,12 +381,8 @@ impl MemoryBus {
             }
             for row in 0..8 {
                 for tile_col in 0..32 {
-                    let tile_address = if signed {
-                        (data_start as i16
-                         + (tiles[tile_col] as i8) as i16 * tile_size as i16) as u16
-                    } else {
-                        data_start + tiles[tile_col] as u16 * tile_size
-                    };
+                    let tile_address
+                        = lcdc.get_bg_or_window_tile_address(tiles[tile_col]);
                     let tile = self.read16(tile_address + 2 * row);
                     let p = ((tile >> 14) & 0b10) | ((tile >> 7) & 1);
                     write!(buffer, "{}", p)?;
@@ -455,11 +449,11 @@ pub struct LcdControl {
 }
 
 impl LcdControl {
-    pub fn are_lcd_and_ppu_enabled(&self) -> bool {
+    pub fn are_lcd_and_ppu_enabled(self) -> bool {
         self.flags & 128 != 0
     }
 
-    pub fn window_tilemap_start(&self) -> u16 {
+    pub fn window_tilemap_start(self) -> u16 {
         if self.flags & 64 == 0 {
             0x9800
         } else {
@@ -467,14 +461,14 @@ impl LcdControl {
         }
     }
 
-    pub fn is_window_enabled(&self) -> bool {
+    pub fn is_window_enabled(self) -> bool {
         self.flags & 32 != 0
     }
 
     /// Tile data offset and signedness of addressing
     ///
     /// https://gbdev.io/pandocs/#vram-tile-data
-    pub fn bg_and_window_tile_data_offset_and_addressing(&self) -> (u16, bool) {
+    fn bg_and_window_tile_data_offset_and_addressing(self) -> (u16, bool) {
         if self.flags & 16 == 0 {
             (0x9000, true)
         } else {
@@ -482,7 +476,18 @@ impl LcdControl {
         }
     }
 
-    pub fn bg_tilemap_start(&self) -> u16 {
+    pub fn get_bg_or_window_tile_address(self, tile: u8) -> u16 {
+        let (offset, signed)
+            = self.bg_and_window_tile_data_offset_and_addressing();
+        let tile_size = 16; // 8 lines with 2 bytes each
+        if signed {
+            (offset as i16 + (tile as i8) as i16 * tile_size as i16) as u16
+        } else {
+            offset + tile as u16 * tile_size
+        }
+    }
+
+    pub fn bg_tilemap_start(self) -> u16 {
         if self.flags & 8 == 0 {
             0x9800
         } else {
@@ -490,7 +495,7 @@ impl LcdControl {
         }
     }
 
-    pub fn obj_height(&self) -> u16 {
+    pub fn obj_height(self) -> u16 {
         // OBJ width is always 8
         if self.flags & 4 == 0 {
             8
@@ -499,11 +504,11 @@ impl LcdControl {
         }
     }
 
-    pub fn is_obj_enabled(&self) -> bool {
+    pub fn is_obj_enabled(self) -> bool {
         self.flags & 2 != 0
     }
 
-    pub fn is_bg_and_window_enabled(&self) -> bool {
+    pub fn is_bg_and_window_enabled(self) -> bool {
         self.flags & 1 != 0
     }
 }
