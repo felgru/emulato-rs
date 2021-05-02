@@ -13,6 +13,8 @@
 * http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
 * https://archive.org/details/GameBoyProgManVer1.1/mode/2up
 * https://github.com/Baekalfen/PyBoy/blob/master/PyBoy.pdf
+* https://github.com/sysprog21/jitboy
+* https://abhinavmir.github.io/posts/gameboy/
 
 # CPU Opcodes
 
@@ -21,20 +23,31 @@
 * https://izik1.github.io/gbops/
 * https://rgbds.gbdev.io/docs/v0.4.2/gbz80.7
 
-# Boot ROM
+# Timing
+
+4 clock cycles = 1 machine cycle (length of NOP execution)
+
+# ROMs
+
+## Boot ROM
 
 * https://gbdev.gg8.se/wiki/articles/Gameboy_Bootstrap_ROM#Contents_of_the_ROM
 * https://realboyemulator.wordpress.com/2013/01/03/a-look-at-the-game-boy-bootstrap-let-the-fun-begin/
 
-# Test ROMs
+## Test ROMs
 
 * https://gbdev.gg8.se/wiki/articles/Test_ROMs
+* https://gbdev.gg8.se/files/roms/blargg-gb-tests/
 * https://github.com/wilbertpol/mooneye-gb/tree/master/tests
 
-# Homebrew ROMs
+## Homebrew ROMs
 
 * https://gbhh.avivace.com/
 
-# Timing
+# Assemblers / Disassemblers
 
-4 clock cycles = 1 machine cycle (length of NOP execution)
+* https://github.com/mattcurrie/mgbdis
+
+# Emulator Tutorials
+
+* https://medium.com/@raphaelstaebler/building-a-gameboy-from-scratch-part-1-51d05496783e
