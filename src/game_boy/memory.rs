@@ -476,7 +476,7 @@ impl LcdControl {
     /// https://gbdev.io/pandocs/#vram-tile-data
     pub fn bg_and_window_tile_data_offset_and_addressing(&self) -> (u16, bool) {
         if self.flags & 16 == 0 {
-            (0x8800, true)
+            (0x9000, true)
         } else {
             (0x8000, false)
         }
