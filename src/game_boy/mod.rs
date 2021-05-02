@@ -49,7 +49,7 @@ impl GameBoy {
         loop {
             for scanline in 0..144 {
                 self.memory.set_ly(scanline);
-                self.memory.lcd_status().set_mode(ppu::LcdMode::SearchingOAM);
+                self.memory.set_lcd_mode(ppu::LcdMode::SearchingOAM);
                 while scanline_cycles <= 80 {
                     self.cpu.step(&mut self.memory);
                     scanline_cycles += 4;
@@ -57,7 +57,8 @@ impl GameBoy {
                         scanline_cycles += 5 * 4;
                     }
                 }
-                self.memory.lcd_status().set_mode(ppu::LcdMode::TransferringDataToLcdController);
+                self.memory.set_lcd_mode(
+                    ppu::LcdMode::TransferringDataToLcdController);
                 // Approximate mode duration, it actually depends on number
                 // of objects to paint, etc.
                 self.ppu.paint_line(&mut self.memory);
@@ -68,7 +69,7 @@ impl GameBoy {
                         scanline_cycles += 5 * 4;
                     }
                 }
-                self.memory.lcd_status().set_mode(ppu::LcdMode::HBlank);
+                self.memory.set_lcd_mode(ppu::LcdMode::HBlank);
                 // TODO: This does not add up exactly, as we assume 60FPS
                 //       here, but it are actually slightly less.
                 while scanline_cycles < CPU_CYCLES_PER_SCANLINE {
@@ -93,7 +94,7 @@ impl GameBoy {
             for scanline in 144..154 {
                 self.memory.set_ly(scanline);
                 if scanline == 144 {
-                    self.memory.lcd_status().set_mode(ppu::LcdMode::VBlank);
+                    self.memory.set_lcd_mode(ppu::LcdMode::VBlank);
                     // request VBlank interrupt
                     let requests = self.memory.read8(0xFF0F) | 1;
                     self.memory.write8(0xFF0F, requests);

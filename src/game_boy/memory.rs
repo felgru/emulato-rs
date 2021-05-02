@@ -256,7 +256,7 @@ impl MemoryBus {
                 self.memory[address as usize] = value;
             }
             0xFFFF => { // IE Register
-                if value <= 1 { // VBLANK or no interrupt
+                if value <= 3 { // VBLANK, STAT or no interrupt
                     self.memory[address as usize] = value;
                 } else {
                     unimplemented!(
@@ -283,6 +283,12 @@ impl MemoryBus {
     pub fn lcd_status(&mut self) -> LcdStatus {
         LcdStatus{flags: &mut self.memory[0xFF41]}
     }
+
+    pub fn set_lcd_mode(&mut self, mode: LcdMode) {
+        if self.lcd_status().set_mode(mode) {
+            // Request Stat interrupt.
+            self.memory[0xFFFF] |= 2;
+        }
     }
 
     pub fn scy(&self) -> u8 {
@@ -301,6 +307,10 @@ impl MemoryBus {
         self.memory[0xFF44] = ly;
         let equal = ly == self.lyc();
         self.lcd_status().update_lyc_eq_ly(equal);
+        if equal && self.lcd_status().lyc_eq_ly_interrupt_set() {
+            // Request Stat interrupt.
+            self.memory[0xFFFF] |= 2;
+        }
     }
 
     pub fn lyc(&self) -> u8 {
