@@ -51,39 +51,57 @@ impl EmulatorWindow {
             .unwrap();
     }
 
-    pub fn is_key_pressed(&self, key: u8) -> bool {
-        let key = match key {
-            0x0 => Key::Key0,
-            0x1 => Key::Key1,
-            0x2 => Key::Key2,
-            0x3 => Key::Key3,
-            0x4 => Key::Key4,
-            0x5 => Key::Key5,
-            0x6 => Key::Key6,
-            0x7 => Key::Key7,
-            0x8 => Key::Key8,
-            0x9 => Key::Key9,
-            0xA => Key::A,
-            0xB => Key::B,
-            0xC => Key::C,
-            0xD => Key::D,
-            0xE => Key::E,
-            0xF => Key::F,
-            k => panic!("{:#X?} is not a valid key.", k),
-        };
-        self.window.is_key_down(key)
-    }
-
     pub fn is_esc_pressed(&self) -> bool {
         self.window.is_key_down(Key::Escape)
     }
 
-    pub fn get_key_press(&self) -> Option<u8> {
-        for key in 0x0..=0xF {
-            if self.is_key_pressed(key) {
-                return Some(key);
-            }
+    /// Get pressed JoyPad keys
+    ///
+    /// Arrows are mapped to arrow keys, B to Z, A to X, SELECT to Q and
+    /// START to W.
+    ///
+    /// Return a bitmap with 1 bit per button, which is 1 if pressed
+    /// and 0 if unpressed.
+    ///
+    /// Bit  Button
+    /// ---  -------
+    /// 0    Right
+    /// 1    Left
+    /// 2    Up
+    /// 3    Down
+    /// 4    A
+    /// 5    B
+    /// 6    Select
+    /// 7    Start
+    pub fn get_key_presses(&self) -> u8 {
+        let mut presses = 0x00;
+        if self.window.is_key_down(Key::Right) {
+            presses |= 0x01;
         }
-        None
+        if self.window.is_key_down(Key::Left) {
+            presses |= 0x02;
+        }
+        if self.window.is_key_down(Key::Up) {
+            presses |= 0x04;
+        }
+        if self.window.is_key_down(Key::Down) {
+            presses |= 0x08;
+        }
+        if self.window.is_key_down(Key::X) { // A
+            presses |= 0x10;
+        }
+        if self.window.is_key_down(Key::Z) { // B
+            presses |= 0x20;
+        }
+        if self.window.is_key_down(Key::Q) { // Select
+            presses |= 0x40;
+        }
+        if self.window.is_key_down(Key::W) { // Start
+            presses |= 0x80;
+        }
+        if presses != 0 {
+            eprintln!("Keypresses: {:0>2X}", presses);
+        }
+        presses
     }
 }

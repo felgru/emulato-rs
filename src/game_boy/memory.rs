@@ -27,6 +27,7 @@ pub struct MemoryBus {
   memory: [u8; 0x10000],
   cartridge: Cartridge,
   boot_rom: Option<[u8; 0x100]>,
+  joypad: u8,
 }
 
 impl MemoryBus {
@@ -35,6 +36,7 @@ impl MemoryBus {
             memory: [0; 0x10000],
             cartridge,
             boot_rom: Some(boot_rom),
+            joypad: 0,
         }
     }
 
@@ -73,7 +75,6 @@ impl MemoryBus {
             }
             // 0xFF00–0xFF7F  I/O Registers
             0xFF00 => { // Joypad
-                // TODO: Update on Joypad register on keypress.
                 self.memory[address as usize]
             }
             0xFF01..=0xFF03 => {
@@ -160,9 +161,8 @@ impl MemoryBus {
             0xFF00..=0xFF7F => { // I/O Registers
                 match address {
                     0xFF00 => { // Joypad
-                        let mem: &mut u8 = &mut self.memory[address as usize];
-                        let value = value & 0x30 | *mem & 0x0F;
-                        *mem = value;
+                        self.memory[address as usize] = value;
+                        self.update_joypad_register();
                     }
                     0xFF01..=0xFF02 => { // Serial Transfer
                         // 0xFF01  SB – Serial Transfer Data
@@ -256,13 +256,12 @@ impl MemoryBus {
                 self.memory[address as usize] = value;
             }
             0xFFFF => { // IE Register
-                if value <= 3 { // VBLANK, STAT or no interrupt
-                    self.memory[address as usize] = value;
-                } else {
+                if value & !0x13 != 0 {
                     unimplemented!(
                         "Writing {:0>2X} to IE register not implemented.",
                         value);
                 }
+                self.memory[address as usize] = value;
             }
         }
     }
@@ -327,6 +326,52 @@ impl MemoryBus {
 
     pub fn bg_palette(&self) -> u8 {
         self.memory[0xFF47]
+    }
+
+    /// Set pressed JoyPad keys
+    ///
+    /// Keypresses are given as a bitmap with 1 bit per button,
+    /// which is 1 if pressed and 0 if unpressed.
+    ///
+    /// Bit  Button
+    /// ---  -------
+    /// 0    Right
+    /// 1    Left
+    /// 2    Up
+    /// 3    Down
+    /// 4    A
+    /// 5    B
+    /// 6    Select
+    /// 7    Start
+    pub fn set_key_presses(&mut self, presses: u8) -> bool {
+        self.joypad = presses;
+        self.update_joypad_register()
+    }
+
+    fn update_joypad_register(&mut self) -> bool {
+        let joypad_register = self.memory[0xFF00];
+        // Careful: joypad_register stores pressed buttons as 0,
+        //          but joypad stores them as 1.
+        let mut joypad = 0;
+        if (joypad_register & 0x10) == 0 { // Direction keys
+            joypad |= self.joypad & 0x0F;
+        }
+        if (joypad_register & 0x20) == 0 { // Action keys
+            joypad |= (self.joypad >> 4) & 0x0F;
+        }
+        self.memory[0xFF00] = joypad_register & 0x30 | (!joypad & 0x0F);
+        if joypad != 0 {
+            eprintln!("Joypad register: {:0>2X}", self.memory[0xFF00]);
+        }
+        // Raise interrup when "unpressed button" bits become
+        // "pressed button bits"
+        if ((joypad_register & 0x0F) & joypad) != 0 {
+            // Request Joypad interrupt
+            self.memory[0xFFFF] |= (1 << 4);
+            true
+        } else {
+            false
+        }
     }
 
     pub fn disable_boot_rom(&mut self) {

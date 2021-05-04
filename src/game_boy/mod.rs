@@ -89,6 +89,11 @@ impl GameBoy {
             }
             last_frame_time = current_frame_time;
             self.ppu.refresh(&mut self.emulator_window);
+            if self.memory.set_key_presses(
+                self.emulator_window.get_key_presses())
+               && self.handle_interrupts() {
+                scanline_cycles += 5 * 4;
+            }
             if self.emulator_window.is_esc_pressed() {
                 break;
             }
