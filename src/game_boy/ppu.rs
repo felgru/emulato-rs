@@ -102,7 +102,7 @@ impl PPU {
                 sprite.y()
             };
             let tile = fetch_obj_tile_line(memory, sprite.tile_index(),
-                                           sprite.y(), obj_height == 16);
+                                           y, obj_height == 16);
             let palette = palettes[attributes.palette()];
             let x = sprite.x();
             // TODO: careful with pixels at the border of the screen
