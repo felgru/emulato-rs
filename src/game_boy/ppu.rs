@@ -111,9 +111,9 @@ impl PPU {
             }
             for i in 0..8 {
                 let x = if attributes.x_flip() {
-                    (x - (7 - i)) as usize
+                    (x - (8 - i)) as usize
                 } else {
-                    (x - i) as usize
+                    (x - 1 - i) as usize
                 };
                 let p = ((tile >> (i + 7)) & 0b10)
                         | ((tile >> i) & 1);
