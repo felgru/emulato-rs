@@ -30,7 +30,16 @@ impl PPU {
         // TODO: This only draws background, handle window and sprites
         if lcdc.is_window_enabled() {
             unimplemented!("Window drawing not implemented, yet!");
+        } else if lcdc.is_bg_and_window_enabled() {
+            self.paint_background_line(memory, lcdc, ly);
         }
+        if lcdc.is_obj_enabled() {
+            self.paint_obj_line(memory, ly);
+        }
+    }
+
+    fn paint_background_line(&mut self, memory: &mut MemoryBus,
+                             lcdc: LcdControl, ly: u8) {
         let (y, _) = ly.overflowing_add(memory.scy());
         let tile_y = y / 8;
         let in_tile_y = y % 8;
@@ -52,6 +61,65 @@ impl PPU {
                 tile_data = fetch_bg_tile_line(
                     memory, lcdc, *tile_iter.next().unwrap(), in_tile_y);
                 tile_pixel_index = 7;
+            }
+        }
+    }
+
+    fn paint_obj_line(&mut self, memory: &mut MemoryBus, ly: u8) {
+        let lcdc = memory.lcdc();
+        let obj_height = lcdc.obj_height();
+        let mut sprites: Vec<Sprite> = Vec::with_capacity(10);
+        for address in (0xFE00..0xFEA0).step_by(4) {
+            let y = memory.read8(address);
+            if ly + 16 < y || ly + 16 >= y + obj_height {
+                // OBJ outside ly
+                continue;
+            }
+            let obj_line = ly + 16 - y;
+            let x = memory.read8(address+1);
+            let tile_index = memory.read8(address+2);
+            let attribute_flags = memory.read8(address+3);
+            sprites.push(Sprite::new(obj_line, x, tile_index, attribute_flags));
+            if sprites.len() == 10 {
+                break;
+            }
+        }
+        if sprites.is_empty() {
+            return;
+        }
+        let palettes = [expand_palette(memory.obj_palette0()),
+                        expand_palette(memory.obj_palette1())];
+        // sort sprites by priority
+        sprites.sort_by(|a, b| {a.x().cmp(&b.x())});
+        let mut pixels = self.display.line_buffer(ly);
+        for sprite in sprites {
+            // TODO: Correctly handle overlapping sprites
+            // TODO: handle mirrored sprites
+            let attributes = sprite.attribute_flags();
+            let y = if attributes.y_flip() {
+                obj_height - 1 - sprite.y()
+            } else {
+                sprite.y()
+            };
+            let tile = fetch_obj_tile_line(memory, sprite.tile_index(),
+                                           sprite.y(), obj_height == 16);
+            let palette = palettes[attributes.palette()];
+            let x = sprite.x();
+            // TODO: careful with pixels at the border of the screen
+            if x < 8 || x >= 160 {
+                continue;
+            }
+            for i in 0..8 {
+                let x = if attributes.x_flip() {
+                    (x - (7 - i)) as usize
+                } else {
+                    (x - i) as usize
+                };
+                let p = ((tile >> (i + 7)) & 0b10)
+                        | ((tile >> i) & 1);
+                if p > 0 {
+                    pixels[x] = palette[p as usize];
+                }
             }
         }
     }
@@ -85,6 +153,28 @@ fn fetch_bg_tile_line(memory: &MemoryBus, lcdc: LcdControl, tile: u8,
     let low = tile + (2 * in_tile_y) as u16;
     let res = memory.read16(low);
     res
+}
+
+fn fetch_obj_tile_line(memory: &MemoryBus, tile: u8,
+                       in_tile_y: u8, double_sized: bool) -> u16 {
+    let (tile, in_tile_y) = if double_sized {
+        if in_tile_y < 8 {
+            (tile & 0xFE, in_tile_y)
+        } else {
+            (tile | 1, in_tile_y - 7)
+        }
+    } else {
+        (tile, in_tile_y)
+    };
+    let low = 0x8000 + 16 * tile as u16 + (2 * in_tile_y) as u16;
+    memory.read16(low)
+}
+
+fn expand_palette(palette: u8) -> [u8; 4] {
+    [palette & 0b11,
+     (palette >> 2) & 0b11,
+     (palette >> 4) & 0b11,
+     (palette >> 6) & 0b11]
 }
 
 /// The Pixel FIFO
@@ -123,5 +213,56 @@ impl From<u8> for LcdMode {
             3 => TransferringDataToLcdController,
             _ => panic!("{:X} is not a valid LcdMode.", v),
         }
+    }
+}
+
+pub struct Sprite {
+    y: u8,
+    x: u8,
+    tile_index: u8,
+    attribute_flags: ObjAttributeFlags,
+}
+
+impl Sprite {
+    pub fn new(y: u8, x: u8, tile_index: u8, attribute_flags: u8) -> Self {
+        let attribute_flags = ObjAttributeFlags(attribute_flags);
+        Sprite{y, x, tile_index, attribute_flags}
+    }
+
+    pub fn y(&self) -> u8 {
+        self.y
+    }
+
+    pub fn x(&self) -> u8 {
+        self.x
+    }
+
+    pub fn tile_index(&self) -> u8 {
+        self.tile_index
+    }
+
+    pub fn attribute_flags(&self) -> ObjAttributeFlags {
+        self.attribute_flags
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct ObjAttributeFlags(u8);
+
+impl ObjAttributeFlags {
+    fn palette(self) -> usize {
+        ((self.0 >> 4) & 1) as usize
+    }
+
+    fn x_flip(self) -> bool {
+        (self.0 & 0x20) != 0
+    }
+
+    fn y_flip(self) -> bool {
+        (self.0 & 0x40) != 0
+    }
+
+    fn bg_and_window_over_obj(self) -> bool {
+        (self.0 & 0x80) != 0
     }
 }

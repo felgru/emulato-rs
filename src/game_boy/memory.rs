@@ -67,10 +67,17 @@ impl MemoryBus {
                 self.memory[address as usize]
             }
             // 0xE000–0xFDFF  ECHO  echos Working RAM, discouraged to be used
+            0xE000..=0xFDFF => {
+                unimplemented!("reading from ECHO {:0>4X} not implemented, yet.",
+                               address);
+            }
             // 0xFE00–0xFE9F  OAM  Object Attribute Memory (description of sprites)
+            0xFE00..=0xFE9F => {
+                self.memory[address as usize]
+            }
             // 0xFEA0–0xFEFF  UNUSED  (reading returns 0, writing does nothing)
-            0xE000..=0xFEFF => {
-                unimplemented!("reading from {:0>4X} not implemented, yet.",
+            0xFEA0..=0xFEFF => {
+                unimplemented!("reading from UNUSED {:0>4X} not implemented, yet.",
                                address);
             }
             // 0xFF00–0xFF7F  I/O Registers
@@ -328,6 +335,14 @@ impl MemoryBus {
         self.memory[0xFF47]
     }
 
+    pub fn obj_palette0(&self) -> u8 {
+        self.memory[0xFF48]
+    }
+
+    pub fn obj_palette1(&self) -> u8 {
+        self.memory[0xFF49]
+    }
+
     /// Set pressed JoyPad keys
     ///
     /// Keypresses are given as a bitmap with 1 bit per button,
@@ -540,7 +555,7 @@ impl LcdControl {
         }
     }
 
-    pub fn obj_height(self) -> u16 {
+    pub fn obj_height(self) -> u8 {
         // OBJ width is always 8
         if self.flags & 4 == 0 {
             8
