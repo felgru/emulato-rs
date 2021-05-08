@@ -27,11 +27,11 @@ impl PPU {
             return;
         }
         let lcdc = memory.lcdc();
-        // TODO: This only draws background, handle window and sprites
-        if lcdc.is_window_enabled() {
-            unimplemented!("Window drawing not implemented, yet!");
-        } else if lcdc.is_bg_and_window_enabled() {
+        if lcdc.is_bg_and_window_enabled() {
             self.paint_background_line(memory, lcdc, ly);
+            if lcdc.is_window_enabled() {
+                self.paint_window_line(memory, lcdc, ly);
+            }
         }
         if lcdc.is_obj_enabled() {
             self.paint_obj_line(memory, ly);
@@ -46,12 +46,52 @@ impl PPU {
         let x_offset = memory.scx();
         let tile_x = x_offset / 8;
         let mut tile_pixel_index = 7 - (x_offset % 8);
-        self.copy_tile_map_line(memory, lcdc, tile_y, tile_x);
+        self.copy_tile_map_line(memory, lcdc.bg_tilemap_start(),
+                                tile_y, tile_x);
         self.read_bg_palette(memory);
         let mut tile_iter = self.tile_buffer.iter();
         let mut tile_data = fetch_bg_tile_line(
             memory, lcdc, *tile_iter.next().unwrap(), in_tile_y);
         for pixel in self.display.line_buffer(ly).iter_mut() {
+            let p = ((tile_data >> (tile_pixel_index + 7)) & 0b10)
+                    | ((tile_data >> tile_pixel_index) & 1);
+            *pixel = self.bg_palette[p as usize];
+            if tile_pixel_index > 0 {
+                tile_pixel_index -= 1;
+            } else {
+                tile_data = fetch_bg_tile_line(
+                    memory, lcdc, *tile_iter.next().unwrap(), in_tile_y);
+                tile_pixel_index = 7;
+            }
+        }
+    }
+
+    fn paint_window_line(&mut self, memory: &mut MemoryBus,
+                         lcdc: LcdControl, ly: u8) {
+        let wy = memory.wy();
+        let wx = memory.wx();
+        if ly < wy || wx > 166 {
+            return;
+        }
+        if wx < 7 || wx == 166 {
+            eprintln!("Window hardware bugs for WX = {} not implemented.", wx);
+        }
+        let y = ly - wy;
+        let tile_y = y / 8;
+        let in_tile_y = y % 8;
+        let (x_offset, mut tile_pixel_index) = if wx >= 7 {
+            (wx - 7, 7)
+        } else {
+            (0, wx)
+        };
+        self.copy_tile_map_line(memory, lcdc.window_tilemap_start(),
+                                tile_y, 0);
+        self.read_bg_palette(memory);
+        let mut tile_iter = self.tile_buffer.iter();
+        let mut tile_data = fetch_bg_tile_line(
+            memory, lcdc, *tile_iter.next().unwrap(), in_tile_y);
+        for pixel in self.display.line_buffer(ly)[x_offset as usize..]
+                                 .iter_mut() {
             let p = ((tile_data >> (tile_pixel_index + 7)) & 0b10)
                     | ((tile_data >> tile_pixel_index) & 1);
             *pixel = self.bg_palette[p as usize];
@@ -125,8 +165,8 @@ impl PPU {
     }
 
     fn copy_tile_map_line(&mut self, memory: &MemoryBus,
-                          lcdc: LcdControl, y: u8, x: u8) {
-        let line_offset = lcdc.bg_tilemap_start() + 32 * y as u16;
+                          tilemap_start: u16, y: u8, x: u8) {
+        let line_offset = tilemap_start + 32 * y as u16;
         let mut x = x as u16;
         for tile in self.tile_buffer.iter_mut() {
             *tile = memory.read8(line_offset + x);
