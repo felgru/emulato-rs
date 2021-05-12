@@ -1,7 +1,3 @@
-use std::io;
-use std::io::Read;
-use std::fs::File;
-
 use super::cartridge::Cartridge;
 use super::ppu::LcdMode;
 
@@ -382,7 +378,7 @@ impl MemoryBus {
         // "pressed button bits"
         if ((joypad_register & 0x0F) & joypad) != 0 {
             // Request Joypad interrupt
-            self.memory[0xFFFF] |= (1 << 4);
+            self.memory[0xFFFF] |= 1 << 4;
             true
         } else {
             false
@@ -404,7 +400,7 @@ impl MemoryBus {
         writeln!(buffer, "{} {}", tiles_per_row*8, num_rows*8)?;
         writeln!(buffer, "3")?;
         let mut row_start = 0x8000;
-        for tile_row in 0..num_rows {
+        for _tile_row in 0..num_rows {
             for row in 0..8 {
                 for tile_col in 0..tiles_per_row {
                     let tile = self.read16(row_start + 2 * row
@@ -432,7 +428,6 @@ impl MemoryBus {
         writeln!(buffer, "256 256")?;
         writeln!(buffer, "3")?;
         let mut tiles: [u8; 32] = [0; 32];
-        let tile_size = 16;
         for tile_row in 0..32 {
             for tile_col in 0..32u16 {
                 let tile
@@ -444,10 +439,14 @@ impl MemoryBus {
                     let tile_address
                         = lcdc.get_bg_or_window_tile_address(tiles[tile_col]);
                     let tile = self.read16(tile_address + 2 * row);
-                    let p = ((tile >> 14) & 0b10) | ((tile >> 7) & 1);
+                    let index = ((tile >> 14) & 0b10)
+                              | ((tile >> 7) & 1);
+                    let p = palette[index as usize];
                     write!(buffer, "{}", 3 - p)?;
                     for i in 1..8 {
-                        let p = ((tile >> 14-i) & 0b10) | ((tile >> 7-i) & 1);
+                        let index = ((tile >> 14-i) & 0b10)
+                                  | ((tile >> 7-i) & 1);
+                        let p = palette[index as usize];
                         write!(buffer, " {}", 3 - p)?;
                     }
                     writeln!(buffer)?;
@@ -611,7 +610,7 @@ impl LcdStatus<'_> {
 
     fn update_lyc_eq_ly(&mut self, set: bool) {
         if set {
-            *self.flags |= (1 << 2);
+            *self.flags |= 1 << 2;
         } else {
             *self.flags &= !(1 << 2);
         }

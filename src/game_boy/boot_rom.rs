@@ -4,7 +4,7 @@ use std::fs::File;
 
 pub fn load_boot_rom(mut file: File) -> io::Result<[u8; 0x100]> {
     let mut rom = [0; 0x100];
-    file.read(&mut rom)?;
+    file.read_exact(&mut rom)?;
     Ok(rom)
 }
 

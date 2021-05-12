@@ -47,11 +47,11 @@ impl CPU {
                 }
             }
         };
-        let mut instruction_bytes: u64 = 0;
-        for i in self.pc..self.pc+instruction.len() {
-            instruction_bytes <<= 8;
-            instruction_bytes += memory.read8(i) as u64;
-        }
+        // let mut instruction_bytes: u64 = 0;
+        // for i in self.pc..self.pc+instruction.len() {
+        //     instruction_bytes <<= 8;
+        //     instruction_bytes += memory.read8(i) as u64;
+        // }
         // eprintln!("{}", self.registers);
         // self.print_stack(memory);
         // eprintln!("{:0>4X}: {1:0>2$X} {3:?}", self.pc, instruction_bytes,
@@ -687,7 +687,7 @@ impl CPU {
             CPL => {
                 self.pc += 1;
                 self.registers.a = !self.registers.a;
-                let mask = (Flag::Subtract as u8 | Flag::HalfCarry as u8);
+                let mask = Flag::Subtract as u8 | Flag::HalfCarry as u8;
                 self.registers.f |= mask;
             }
             SCF => {
@@ -1396,7 +1396,7 @@ impl Instruction {
                 let r = instruction_byte & 0b111;
                 Some(Instruction::SWAP(r.into()))
             }
-            038..=0x3F => {
+            0x38..=0x3F => {
                 let r = instruction_byte & 0b111;
                 Some(Instruction::SRL(r.into()))
             }
@@ -1410,7 +1410,7 @@ impl Instruction {
                 let r = instruction_byte & 0b111;
                 Some(Instruction::RES(bit.into(), r.into()))
             }
-            0xA0..=0xFF => {
+            0xC0..=0xFF => {
                 let bit = (instruction_byte & 0b0011_1000) >> 3;
                 let r = instruction_byte & 0b111;
                 Some(Instruction::SET(bit.into(), r.into()))
@@ -1421,13 +1421,13 @@ impl Instruction {
     fn from_byte_nonprefixed(instruction_byte: u8) -> Option<Self> {
         match instruction_byte {
             0x00 => Some(Instruction::NOP),
-            0b00_000_001..=0b00_111_111
+            0b0000_0001..=0b0011_1111
                     if instruction_byte & 0b111 == 0b110 => {
-                let to = (instruction_byte & 0b111_000) >> 3;
+                let to = (instruction_byte & 0b11_1000) >> 3;
                 Some(Instruction::LD(LoadType::Byte(
                             to.into(), LoadByteSource::D8)))
             }
-            0b00_000_001..=0b00_111_111
+            0b0000_0001..=0b0011_1111
                     if instruction_byte & 0b1111 == 0b0001 => {
                 let to = (instruction_byte & 0b11_0000) >> 4;
                 Some(Instruction::LD(LoadType::Word(
@@ -1443,14 +1443,14 @@ impl Instruction {
                 let r = (instruction_byte & 0b11_0000) >> 4;
                 Some(Instruction::DEC(IncDecType::IncDec16(r.into())))
             }
-            0b00_000_100..=0b00_111_100
+            0b0000_0100..=0b0011_1100
                     if instruction_byte & 0b111 == 0b100 => {
-                let r = (instruction_byte & 0b111_000) >> 3;
+                let r = (instruction_byte & 0b11_1000) >> 3;
                 Some(Instruction::INC(IncDecType::IncDec8(r.into())))
             }
-            0b00_000_101..=0b00_111_101
+            0b0000_0101..=0b0011_1101
                     if instruction_byte & 0b111 == 0b101 => {
-                let r = (instruction_byte & 0b111_000) >> 3;
+                let r = (instruction_byte & 0b11_1000) >> 3;
                 Some(Instruction::DEC(IncDecType::IncDec8(r.into())))
             }
             0b0000_1001..=0b0011_1001
@@ -1461,14 +1461,14 @@ impl Instruction {
             0x76 => {
                 Some(Instruction::HALT)
             }
-            0b01_000_000..=0b01_111_111
+            0b0100_0000..=0b0111_1111
                 if instruction_byte != 0x76 => {
                 let from = instruction_byte & 0b111;
-                let to = (instruction_byte & 0b111_000) >> 3;
+                let to = (instruction_byte & 0b11_1000) >> 3;
                 Some(Instruction::LD(LoadType::Byte(to.into(), from.into())))
             }
             0x02 | 0x12 | 0x22 | 0x32 => {
-                let to = (instruction_byte & 0b110_000) >> 4;
+                let to = (instruction_byte & 0b11_0000) >> 4;
                 Some(Instruction::LD(LoadType::IndirectByteFromA(to.into())))
             }
             0x08 => {

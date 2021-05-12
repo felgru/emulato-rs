@@ -131,7 +131,7 @@ impl PPU {
                         expand_palette(memory.obj_palette1())];
         // sort sprites by priority
         sprites.sort_by(|a, b| {a.x().cmp(&b.x())});
-        let mut pixels = self.display.line_buffer(ly);
+        let pixels = self.display.line_buffer(ly);
         for sprite in sprites {
             // TODO: Correctly handle overlapping sprites
             // TODO: handle mirrored sprites
@@ -146,7 +146,7 @@ impl PPU {
             let palette = palettes[attributes.palette()];
             let x = sprite.x();
             // TODO: careful with pixels at the border of the screen
-            if x < 8 || x >= 160 {
+            if !(8..160).contains(&x) {
                 continue;
             }
             for i in 0..8 {
@@ -191,8 +191,7 @@ fn fetch_bg_tile_line(memory: &MemoryBus, lcdc: LcdControl, tile: u8,
                       in_tile_y: u8) -> u16 {
     let tile = lcdc.get_bg_or_window_tile_address(tile);
     let low = tile + (2 * in_tile_y) as u16;
-    let res = memory.read16(low);
-    res
+    memory.read16(low)
 }
 
 fn fetch_obj_tile_line(memory: &MemoryBus, tile: u8,

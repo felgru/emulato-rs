@@ -24,7 +24,7 @@ impl Memory {
 
     pub fn load_program_from_file(&mut self, mut f: File) -> io::Result<()> {
         let program_start_address = 0x200;
-        f.read(&mut self.0[program_start_address..])?;
+        f.read_exact(&mut self.0[program_start_address..])?;
         Ok(())
     }
 

@@ -66,7 +66,7 @@ impl Cartridge {
         self.memory_controller.ram_read8(&self.ram, address)
     }
 
-    pub fn header<'a>(&'a self) -> CartridgeHeader<'a> {
+    pub fn header(&self) -> CartridgeHeader {
         CartridgeHeader{rom: &self.rom}
     }
 }

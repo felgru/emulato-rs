@@ -3,7 +3,6 @@ use std::fs::File;
 use clap::{App, Arg, ArgMatches};
 
 pub fn game_boy_subcommand<'a>() -> App<'a> {
-    use super::GameBoy;
     App::new("gameboy")
     .about("A Game Boy emulator")
     .arg(
