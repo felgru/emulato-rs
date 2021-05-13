@@ -292,7 +292,7 @@ impl MemoryControllerRegisters for MBC1 {
                 if bank == 0 {
                     bank += 1;
                 }
-                eprintln!("switching to ROM bank {}", bank);
+                // eprintln!("switching to ROM bank {}", bank);
                 self.rom_bank &= 0xE0;
                 self.rom_bank |= bank;
             }
