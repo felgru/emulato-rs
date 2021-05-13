@@ -134,7 +134,6 @@ impl PPU {
         let pixels = self.display.line_buffer(ly);
         for sprite in sprites {
             // TODO: Correctly handle overlapping sprites
-            // TODO: handle mirrored sprites
             let attributes = sprite.attribute_flags();
             let y = if attributes.y_flip() {
                 obj_height - 1 - sprite.y()
@@ -145,15 +144,18 @@ impl PPU {
                                            y, obj_height == 16);
             let palette = palettes[attributes.palette()];
             let x = sprite.x();
-            // TODO: careful with pixels at the border of the screen
-            if !(8..160).contains(&x) {
-                continue;
-            }
-            for i in 0..8 {
-                let x = if attributes.x_flip() {
-                    (x - (8 - i)) as usize
+            let i_min = if x > 160 {
+                x - 160
+            } else {
+                0
+            };
+            let i_max = std::cmp::min(x, 8);
+            for i in i_min..i_max {
+                let x = (x - 1 - i) as usize;
+                let i = if attributes.x_flip() {
+                    7 - i
                 } else {
-                    (x - 1 - i) as usize
+                    i
                 };
                 let p = ((tile >> (i + 7)) & 0b10)
                         | ((tile >> i) & 1);
