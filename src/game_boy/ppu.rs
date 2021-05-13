@@ -196,7 +196,7 @@ fn fetch_obj_tile_line(memory: &MemoryBus, tile: u8,
         if in_tile_y < 8 {
             (tile & 0xFE, in_tile_y)
         } else {
-            (tile | 1, in_tile_y - 7)
+            (tile | 1, in_tile_y - 8)
         }
     } else {
         (tile, in_tile_y)
