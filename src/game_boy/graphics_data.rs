@@ -19,4 +19,11 @@ impl MonochromePalette {
     pub fn color(self, index: u8) -> u8 {
         (self.palette >> (2*index)) & 3
     }
+
+    pub fn as_array(self) -> [u8; 4] {
+        [self.palette & 0b11,
+         (self.palette >> 2) & 0b11,
+         (self.palette >> 4) & 0b11,
+         (self.palette >> 6) & 0b11]
+    }
 }

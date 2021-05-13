@@ -127,8 +127,8 @@ impl PPU {
         if sprites.is_empty() {
             return;
         }
-        let palettes = [expand_palette(memory.obj_palette0()),
-                        expand_palette(memory.obj_palette1())];
+        let palettes = [memory.obj_palette0().as_array(),
+                        memory.obj_palette1().as_array()];
         // sort sprites by priority
         sprites.sort_by(|a, b| {a.x().cmp(&b.x())});
         let pixels = self.display.line_buffer(ly);
@@ -175,11 +175,7 @@ impl PPU {
     }
 
     fn read_bg_palette(&mut self, memory: &MemoryBus) {
-        let palette = memory.bg_palette();
-        self.bg_palette[0] = palette & 0b11;
-        self.bg_palette[1] = (palette >> 2) & 0b11;
-        self.bg_palette[2] = (palette >> 4) & 0b11;
-        self.bg_palette[3] = (palette >> 6) & 0b11;
+        self.bg_palette = memory.bg_palette().as_array();
     }
 
     pub fn refresh(&self, window: &mut EmulatorWindow) {
@@ -207,13 +203,6 @@ fn fetch_obj_tile_line(memory: &MemoryBus, tile: u8,
     };
     let low = 0x8000 + 16 * tile as u16 + (2 * in_tile_y) as u16;
     memory.read16(low)
-}
-
-fn expand_palette(palette: u8) -> [u8; 4] {
-    [palette & 0b11,
-     (palette >> 2) & 0b11,
-     (palette >> 4) & 0b11,
-     (palette >> 6) & 0b11]
 }
 
 /// The Pixel FIFO

@@ -1,4 +1,5 @@
 use super::cartridge::Cartridge;
+use super::graphics_data::MonochromePalette;
 use super::ppu::LcdMode;
 
 /// The memory bus of a Game Boy
@@ -327,16 +328,16 @@ impl MemoryBus {
         self.memory[0xFF4B]
     }
 
-    pub fn bg_palette(&self) -> u8 {
-        self.memory[0xFF47]
+    pub fn bg_palette(&self) -> MonochromePalette {
+        self.memory[0xFF47].into()
     }
 
-    pub fn obj_palette0(&self) -> u8 {
-        self.memory[0xFF48]
+    pub fn obj_palette0(&self) -> MonochromePalette {
+        self.memory[0xFF48].into()
     }
 
-    pub fn obj_palette1(&self) -> u8 {
-        self.memory[0xFF49]
+    pub fn obj_palette1(&self) -> MonochromePalette {
+        self.memory[0xFF49].into()
     }
 
     /// Set pressed JoyPad keys
@@ -422,7 +423,7 @@ impl MemoryBus {
     pub fn dump_bg<W: std::io::Write>(&self,
                                       buffer: &mut W) -> std::io::Result<()> {
         let lcdc = self.lcdc();
-        let palette = Self::expand_palette(self.bg_palette());
+        let palette = self.bg_palette().as_array();
         let tile_map_start = lcdc.bg_tilemap_start();
         writeln!(buffer, "P2")?;
         writeln!(buffer, "256 256")?;
@@ -454,13 +455,6 @@ impl MemoryBus {
             }
         }
         Ok(())
-    }
-
-    fn expand_palette(palette: u8) -> [u8; 4] {
-        [palette & 0b11,
-         (palette >> 2) & 0b11,
-         (palette >> 4) & 0b11,
-         (palette >> 6) & 0b11]
     }
 
     pub fn get_requested_interrupts(&self) -> u8 {
