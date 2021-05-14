@@ -1025,7 +1025,7 @@ impl Registers {
 
 impl fmt::Display for Registers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, " A    F  B  C  D  E  H  L\n")?;
+        writeln!(f, " A    F  B  C  D  E  H  L")?;
         write!(f, "{:0>2X} ", self.a)?;
         let zero = if self.f & Flag::Zero as u8 != 0 {'Z'} else {'z'};
         let sub = if self.f & Flag::Subtract as u8 != 0 {'N'} else {'n'};

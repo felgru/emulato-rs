@@ -157,7 +157,7 @@ impl fmt::Display for Display {
                     write!(f, " ")?;
                 }
             }
-            eprint!("\n");
+            eprintln!();
         }
         Ok(())
     }

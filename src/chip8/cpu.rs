@@ -343,7 +343,7 @@ impl IndexMut<u8> for Registers {
 
 impl fmt::Display for Registers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, " 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F   I\n")?;
+        writeln!(f, " 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F   I")?;
         for i in 0..0xF {
           write!(f, "{:0>2X} ", self[i])?;
         }
