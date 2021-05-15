@@ -24,9 +24,9 @@ impl CPU {
         }
     }
 
-    pub fn step(&mut self, memory: &mut MemoryBus) {
+    pub fn step(&mut self, memory: &mut MemoryBus) -> usize {
         if self.halt {
-            return
+            return 4
         }
         let instruction = {
             let mut instruction_byte = memory.read8(self.pc);
@@ -60,14 +60,17 @@ impl CPU {
         self.execute(memory, instruction)
     }
 
-    fn execute(&mut self, memory: &mut MemoryBus, instruction: Instruction) {
+    fn execute(&mut self, memory: &mut MemoryBus,
+               instruction: Instruction) -> usize {
         use Instruction::*;
         match instruction {
             NOP => {
                 self.pc += 1;
+                4
             }
             ADD(operand) => {
                 self.pc += 1;
+                let cycles = operand.cycles() + 4;
                 let operand = self.load_arithmetic_operand(memory, operand);
                 let a = self.registers.a;
                 let (new_a, carry) = a.overflowing_add(operand);
@@ -84,6 +87,7 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                cycles
             }
             ADC(operand) => {
                 self.pc += 1;
@@ -113,9 +117,14 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                // TODO: The number of cycles might be 4 for adding from
+                //       registers.  Not sure if the number of cycles that
+                //       I found in an opcode table is correct.
+                8
             }
             SUB(operand) => {
                 self.pc += 1;
+                let cycles = operand.cycles() + 4;
                 let operand = self.load_arithmetic_operand(memory, operand);
                 let a = self.registers.a;
                 let (new_a, carry) = a.overflowing_sub(operand);
@@ -132,9 +141,11 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                cycles
             }
             SBC(operand) => {
                 self.pc += 1;
+                let cycles = operand.cycles() + 4;
                 let operand = self.load_arithmetic_operand(memory, operand);
                 let a = self.registers.a;
                 let old_carry = self.registers.f & Flag::Carry as u8 != 0;
@@ -169,6 +180,7 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                cycles
             }
             INC(inc_type) => {
                 self.pc += 1;
@@ -187,11 +199,13 @@ impl CPU {
                             f |= Flag::HalfCarry as u8;
                         }
                         self.registers.f = f;
+                        4 + operand.cycles()
                     }
                     IncDecType::IncDec16(operand) => {
                         let value = self.load_inc_dec_16_operand(operand);
                         let (new, _carry) = value.overflowing_add(1);
                         self.write_inc_dec_16_operand(operand, new);
+                        8
                     }
                 }
             }
@@ -213,11 +227,13 @@ impl CPU {
                             f |= Flag::HalfCarry as u8;
                         }
                         self.registers.f = f;
+                        4 + operand.cycles()
                     }
                     IncDecType::IncDec16(operand) => {
                         let value = self.load_inc_dec_16_operand(operand);
                         let (new, _carry) = value.overflowing_sub(1);
                         self.write_inc_dec_16_operand(operand, new);
+                        8
                     }
                 }
             }
@@ -236,6 +252,7 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                8
             }
             ADD16SP => {
                 self.pc += 1;
@@ -256,6 +273,7 @@ impl CPU {
                 }
                 self.sp = new_sp;
                 self.registers.f = f;
+                16
             }
             ADD16SPinHL => {
                 self.pc += 1;
@@ -276,9 +294,11 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                12
             }
             AND(operand) => {
                 self.pc += 1;
+                let cycles = operand.cycles() + 4;
                 let operand = self.load_arithmetic_operand(memory, operand);
                 self.registers.a &= operand;
                 self.registers.f = if self.registers.a == 0 {
@@ -286,9 +306,11 @@ impl CPU {
                 } else {
                     0
                 } | Flag::HalfCarry as u8;
+                cycles
             }
             XOR(operand) => {
                 self.pc += 1;
+                let cycles = operand.cycles() + 4;
                 let operand = self.load_arithmetic_operand(memory, operand);
                 self.registers.a ^= operand;
                 self.registers.f = if self.registers.a == 0 {
@@ -296,9 +318,11 @@ impl CPU {
                 } else {
                     0
                 };
+                cycles
             }
             OR(operand) => {
                 self.pc += 1;
+                let cycles = operand.cycles() + 4;
                 let operand = self.load_arithmetic_operand(memory, operand);
                 self.registers.a |= operand;
                 self.registers.f = if self.registers.a == 0 {
@@ -306,9 +330,11 @@ impl CPU {
                 } else {
                     0
                 };
+                cycles
             }
             CP(operand) => {
                 self.pc += 1;
+                let cycles = operand.cycles() + 4;
                 let operand = self.load_arithmetic_operand(memory, operand);
                 let a = self.registers.a;
                 let (cp, carry) = a.overflowing_sub(operand);
@@ -324,10 +350,12 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                cycles
             }
             LD(load_type) => match load_type {
                 LoadType::Byte(to, from) => {
                     self.pc += 1;
+                    let cycles = 4 + from.cycles() + to.cycles();
                     let from = match from {
                         LoadByteSource::Register(reg) => {
                             self.registers.read8(reg)
@@ -351,9 +379,11 @@ impl CPU {
                             memory.write8(hl, from);
                         }
                     }
+                    cycles
                 }
                 LoadType::Word(to, from) => {
                     self.pc += 1;
+                    let cycles = from.cycles() + 8;
                     let from = match from {
                         LoadWordSource::D16 => {
                             let d16 = memory.read16(self.pc);
@@ -375,6 +405,7 @@ impl CPU {
                             self.sp = from;
                         }
                     }
+                    cycles
                 }
                 LoadType::IndirectByteFromA(to) => {
                     self.pc += 1;
@@ -399,6 +430,7 @@ impl CPU {
                         }
                     };
                     memory.write8(address, from);
+                    to.cycles() + 8
                 }
                 LoadType::IndirectByteToA(from) => {
                     self.pc += 1;
@@ -422,12 +454,14 @@ impl CPU {
                         }
                     };
                     self.registers.a = memory.read8(address);
+                    from.cycles() + 8
                 }
                 LoadType::IndirectWordFromSP => {
                     self.pc += 1;
                     let address = memory.read16(self.pc);
                     self.pc += 2;
                     memory.write16(address, self.sp);
+                    20
                 }
             }
             LDH(load_type, load_direction) => {
@@ -450,6 +484,7 @@ impl CPU {
                         self.registers.a = memory.read8(address);
                     }
                 }
+                load_type.cycles() + 4
             }
             RLCA => {
                 self.pc += 1;
@@ -461,6 +496,7 @@ impl CPU {
                     f = Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                4
             }
             RLA => {
                 self.pc += 1;
@@ -474,6 +510,7 @@ impl CPU {
                 } else {
                     0
                 };
+                4
             }
             RL(r) => {
                 self.pc += 2;
@@ -492,6 +529,7 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                r.cycles() + 8
             }
             RLC(r) => {
                 self.pc += 2;
@@ -510,6 +548,7 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                r.cycles() + 8
             }
             SLA(r) => {
                 self.pc += 2;
@@ -525,6 +564,7 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                r.cycles() + 8
             }
             RRCA => {
                 self.pc += 1;
@@ -536,6 +576,7 @@ impl CPU {
                     f = Flag::Carry as u8;
                 };
                 self.registers.f = f;
+                4
             }
             RRA => {
                 self.pc += 1;
@@ -549,6 +590,7 @@ impl CPU {
                 } else {
                     0
                 };
+                4
             }
             RR(r) => {
                 self.pc += 2;
@@ -567,6 +609,7 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                r.cycles() + 8
             }
             RRC(r) => {
                 self.pc += 2;
@@ -585,6 +628,7 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                r.cycles() + 8
             }
             SRA(r) => {
                 self.pc += 2;
@@ -601,6 +645,7 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                r.cycles() + 8
             }
             SRL(r) => {
                 self.pc += 2;
@@ -616,6 +661,7 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                r.cycles() + 8
             }
             SWAP(r) => {
                 self.pc += 2;
@@ -627,6 +673,7 @@ impl CPU {
                 } else {
                     0
                 };
+                r.cycles() + 8
             }
             BIT(bit, r) => {
                 self.pc += 2;
@@ -641,18 +688,21 @@ impl CPU {
                 let mask: u8 = Flag::Subtract as u8 | Flag::HalfCarry as u8;
                 f = (f & !mask) | Flag::HalfCarry as u8;
                 self.registers.f = f;
+                r.cycles() + 8
             }
             RES(bit, r) => {
                 self.pc += 2;
                 let v = self.load_non_direct_arithmetic_operand(memory, r)
                       & !(bit as u8);
                 self.write_non_direct_arithmetic_operand(memory, r, v);
+                r.cycles() + 8
             }
             SET(bit, r) => {
                 self.pc += 2;
                 let v = self.load_non_direct_arithmetic_operand(memory, r)
                       | (bit as u8);
                 self.write_non_direct_arithmetic_operand(memory, r, v);
+                r.cycles() + 8
             }
             DAA => {
                 self.pc += 1;
@@ -683,34 +733,42 @@ impl CPU {
                     f |= Flag::Carry as u8;
                 }
                 self.registers.f = f;
+                4
             }
             CPL => {
                 self.pc += 1;
                 self.registers.a = !self.registers.a;
                 let mask = Flag::Subtract as u8 | Flag::HalfCarry as u8;
                 self.registers.f |= mask;
+                4
             }
             SCF => {
                 self.pc += 1;
                 let f = self.registers.f & Flag::Zero as u8
                       | Flag::Carry as u8;
                 self.registers.f = f;
+                4
             }
             CCF => {
                 self.pc += 1;
                 let f = (self.registers.f ^ Flag::Carry as u8)
                       & (Flag::Zero as u8 | Flag::Carry as u8);
                 self.registers.f = f;
+                4
             }
             JP(condition) => {
                 let nn = memory.read16(self.pc + 1);
                 self.pc += 3;
                 if self.test_jump_condition(condition) {
                     self.pc = nn;
+                    16
+                } else {
+                    12
                 }
             }
             JPHL => {
                 self.pc = self.registers.read16(U16Register::HL);
+                4
             }
             JR(condition) => {
                 let e = memory.read8(self.pc + 1);
@@ -718,6 +776,9 @@ impl CPU {
                 self.pc += 2;
                 if self.test_jump_condition(condition) {
                     self.pc = (self.pc as i16 + e as i16) as u16;
+                    12
+                } else {
+                    8
                 }
             }
             CALL(condition) => {
@@ -726,46 +787,59 @@ impl CPU {
                 if self.test_jump_condition(condition) {
                     self.push(memory, self.pc);
                     self.pc = nn;
+                    6 * 4
+                } else {
+                    3 * 4
                 }
             }
             RST(n) => {
                 self.pc += 1;
                 self.push(memory, self.pc);
                 self.pc = n as u16;
+                16
             }
             RET(condition) => {
                 if self.test_jump_condition(condition) {
                     let address = self.pop(memory);
                     self.pc = address;
+                    // TODO: This might only be 4 * 4 for unconditional RET
+                    5 * 4
                 } else {
                     self.pc += 1;
+                    2 * 4
                 }
             }
             RETI => {
                 let address = self.pop(memory);
                 self.pc = address;
                 self.ime = true;
+                16
             }
             PUSH(register) => {
                 self.pc += 1;
                 self.push(memory, self.registers.read16(register));
+                16
             }
             POP(register) => {
                 self.pc += 1;
                 let value = self.pop(memory);
                 self.registers.write16(register, value);
+                12
             }
             DI => {
                 self.pc += 1;
                 self.ime = false;
+                4
             }
             EI => {
                 self.pc += 1;
                 self.ime = true;
+                4
             }
             HALT => {
                 self.pc += 1;
                 self.halt = true;
+                4
             }
         }
     }
@@ -1052,6 +1126,10 @@ enum Flag {
     Carry = 1 << 4,
 }
 
+trait FetchCycles {
+    fn cycles(&self) -> usize;
+}
+
 #[derive(Copy, Clone, Debug)]
 enum ArithmeticOperand {
     Register(U8Register),
@@ -1073,6 +1151,17 @@ impl From<u8> for ArithmeticOperand {
             0b110 => HLI,
             0b111 => Register(A),
             _ => panic!("{:X} is not a valid ArithmeticOperand.", v),
+        }
+    }
+}
+
+impl FetchCycles for ArithmeticOperand {
+    fn cycles(&self) -> usize {
+        use ArithmeticOperand::*;
+        match *self {
+            Register(_) => 0,
+            HLI => 4,
+            D8 => 4,
         }
     }
 }
@@ -1122,6 +1211,16 @@ impl From<u8> for NonDirectArithmeticOperand {
     }
 }
 
+impl FetchCycles for NonDirectArithmeticOperand {
+    fn cycles(&self) -> usize {
+        use NonDirectArithmeticOperand::*;
+        match *self {
+            Register(_) => 0,
+            HLI => 8,
+        }
+    }
+}
+
 #[derive(Debug)]
 enum LoadByteTarget {
     Register(U8Register),
@@ -1142,6 +1241,16 @@ impl From<u8> for LoadByteTarget {
             0b110 => HLI,
             0b111 => Register(A),
             _ => panic!("{:X} is not a valid LoadByteTarget.", v),
+        }
+    }
+}
+
+impl FetchCycles for LoadByteTarget {
+    fn cycles(&self) -> usize {
+        use LoadByteTarget::*;
+        match *self {
+            Register(_) => 0,
+            HLI => 4,
         }
     }
 }
@@ -1191,11 +1300,33 @@ impl From<u8> for LoadByteSource {
     }
 }
 
+impl FetchCycles for LoadByteSource {
+    fn cycles(&self) -> usize {
+        use LoadByteSource::*;
+        match *self {
+            Register(_) => 0,
+            D8 => 4,
+            HLI => 4,
+        }
+    }
+}
+
 #[derive(Debug)]
 enum LoadWordSource {
     D16,
     SP,
     HL,
+}
+
+impl FetchCycles for LoadWordSource {
+    fn cycles(&self) -> usize {
+        use LoadWordSource::*;
+        match *self {
+            D16 => 4,
+            SP => 0,
+            HL => 0,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1220,6 +1351,18 @@ impl From<u8> for LoadIndirectByteOperand {
     }
 }
 
+impl FetchCycles for LoadIndirectByteOperand {
+    fn cycles(&self) -> usize {
+        use LoadIndirectByteOperand::*;
+        match *self {
+            Register(_) => 0,
+            HLI_incrementing => 0,
+            HLI_decrementing => 0,
+            Address => 8,
+        }
+    }
+}
+
 #[derive(Debug)]
 enum LoadType {
     Byte(LoadByteTarget, LoadByteSource),
@@ -1233,6 +1376,16 @@ enum LoadType {
 enum LdhOperand {
     I8,
     Ci,
+}
+
+impl FetchCycles for LdhOperand {
+    fn cycles(&self) -> usize {
+        use LdhOperand::*;
+        match *self {
+            I8 => 8,
+            Ci => 4,
+        }
+    }
 }
 
 #[derive(Debug)]

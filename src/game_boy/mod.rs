@@ -52,8 +52,7 @@ impl GameBoy {
                 self.memory.set_ly(scanline);
                 self.memory.set_lcd_mode(ppu::LcdMode::SearchingOAM);
                 while scanline_cycles <= 80 {
-                    self.cpu.step(&mut self.memory);
-                    scanline_cycles += 4;
+                    scanline_cycles += self.cpu.step(&mut self.memory);
                     if self.handle_interrupts() {
                         scanline_cycles += 5 * 4;
                     }
@@ -64,8 +63,7 @@ impl GameBoy {
                 // of objects to paint, etc.
                 self.ppu.paint_line(&mut self.memory);
                 while scanline_cycles <= 280 {
-                    self.cpu.step(&mut self.memory);
-                    scanline_cycles += 4;
+                    scanline_cycles += self.cpu.step(&mut self.memory);
                     if self.handle_interrupts() {
                         scanline_cycles += 5 * 4;
                     }
@@ -74,8 +72,7 @@ impl GameBoy {
                 // TODO: This does not add up exactly, as we assume 60FPS
                 //       here, but it are actually slightly less.
                 while scanline_cycles < CPU_CYCLES_PER_SCANLINE {
-                    self.cpu.step(&mut self.memory);
-                    scanline_cycles += 4;
+                    scanline_cycles += self.cpu.step(&mut self.memory);
                     if self.handle_interrupts() {
                         scanline_cycles += 5 * 4;
                     }
@@ -106,8 +103,7 @@ impl GameBoy {
                     self.memory.write8(0xFF0F, requests);
                 }
                 while scanline_cycles < CPU_CYCLES_PER_SCANLINE {
-                    self.cpu.step(&mut self.memory);
-                    scanline_cycles += 4;
+                    scanline_cycles += self.cpu.step(&mut self.memory);
                     if self.handle_interrupts() {
                         scanline_cycles += 5 * 4;
                     }
