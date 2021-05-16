@@ -150,6 +150,7 @@ enum MemoryController {
     NoController,
     MBC1(MBC1),
     MBC3(MBC3),
+    MBC5(MBC5),
 }
 
 impl MemoryController {
@@ -160,6 +161,7 @@ impl MemoryController {
             Model::NoController => Self::NoController,
             Model::MBC1 => Self::MBC1(MBC1::from_cartridge_header(header)),
             Model::MBC3 => Self::MBC3(MBC3::from_cartridge_header(header)),
+            Model::MBC5 => Self::MBC5(MBC5::from_cartridge_header(header)),
             _ => unimplemented!("Memory controller {:?} not handled yet.",
                                 controller_model),
         }
@@ -175,6 +177,9 @@ impl MemoryController {
             MBC3(mbc3) => {
                 rom[address as usize - 0x4000 + mbc3.rom_bank_offset()]
             }
+            MBC5(mbc5) => {
+                rom[address as usize - 0x4000 + mbc5.rom_bank_offset()]
+            }
         }
     }
 
@@ -188,6 +193,9 @@ impl MemoryController {
             MBC3(mbc3) => {
                 ram[address as usize - 0xA000 + mbc3.ram_bank_offset()]
             }
+            MBC5(mbc5) => {
+                ram[address as usize - 0xA000 + mbc5.ram_bank_offset()]
+            }
         }
     }
 
@@ -199,6 +207,7 @@ impl MemoryController {
                 value, address),
             MBC1(mbc1) => mbc1.register_write8(address, value),
             MBC3(mbc3) => mbc3.register_write8(address, value),
+            MBC5(mbc5) => mbc5.register_write8(address, value),
         }
     }
 
@@ -214,6 +223,10 @@ impl MemoryController {
             }
             MBC3(mbc3) => {
                 ram[address as usize - 0xA000 + mbc3.ram_bank_offset()]
+                    = value;
+            }
+            MBC5(mbc5) => {
+                ram[address as usize - 0xA000 + mbc5.ram_bank_offset()]
                     = value;
             }
         }
@@ -386,6 +399,70 @@ impl MemoryControllerRegisters for MBC3 {
             }
             0x6000..=0x7FFF => { // Latch Clock Data
                 unimplemented!("Latching clock data.");
+            }
+            _ => unreachable!("{:0>4X} is not a cartridge register.", address),
+        }
+    }
+
+    fn rom_bank_offset(&self) -> usize {
+        0x4000 * self.rom_bank as usize
+    }
+
+    fn ram_bank_offset(&self) -> usize {
+        0x2000 * self.ram_bank as usize
+    }
+}
+
+struct MBC5 {
+    rom_bank: u16,
+    ram_bank: u8,
+    num_rom_banks: u16,
+    num_ram_banks: u8,
+}
+
+impl MBC5 {
+    fn from_cartridge_header(header: &CartridgeHeader) -> Self {
+        let num_rom_banks = header.num_rom_banks();
+        let num_ram_banks = header.num_ram_banks();
+        Self{
+            rom_bank: 1,
+            ram_bank: 0,
+            num_rom_banks,
+            num_ram_banks,
+        }
+    }
+}
+
+impl MemoryControllerRegisters for MBC5 {
+    fn register_write8(&mut self, address: u16, value: u8) {
+        match address {
+            0x0000..=0x1FFF => { // RAM and Timer Enable
+                // 0x00  Disable RAM (default)
+                // 0x0A  Enable RAM
+                match value {
+                    0x00 => eprintln!("disable cartridge RAM."),
+                    0x0A => eprintln!("enable cartridge RAM."),
+                    _ => eprintln!("Unexpected RAM enable/disable value {}",
+                                   value),
+                }
+            }
+            0x2000..=0x2FFF => { // least significant byte of ROM Bank Number
+                // TODO: mask with max bits required for num_rom_banks
+                let bank = (self.rom_bank & !0xFF) | value as u16;
+                eprintln!("switching to ROM bank {}", bank);
+                self.rom_bank = bank;
+            }
+            0x3000..=0x3FFF => { // 9th bit of ROM Bank Number
+                // TODO: mask with max bits required for num_rom_banks
+                let bank = (self.rom_bank & 0xFF) | (((value & 1) as u16) << 8);
+                eprintln!("switching to ROM bank {}", bank);
+                self.rom_bank = bank;
+            }
+            0x4000..=0x5FFF => { // RAM Bank Number
+                // TODO: If cartridge contains rumble motor, bit 3 is
+                // connected to the rumble motor.
+                let bank = value & 0xF;
+                self.ram_bank = bank;
             }
             _ => unreachable!("{:0>4X} is not a cartridge register.", address),
         }
