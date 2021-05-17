@@ -52,10 +52,7 @@ impl GameBoy {
                 self.memory.set_ly(scanline);
                 self.memory.set_lcd_mode(ppu::LcdMode::SearchingOAM);
                 while scanline_cycles <= 80 {
-                    scanline_cycles += self.cpu.step(&mut self.memory);
-                    if self.handle_interrupts() {
-                        scanline_cycles += 5 * 4;
-                    }
+                    scanline_cycles += self.step();
                 }
                 self.memory.set_lcd_mode(
                     ppu::LcdMode::TransferringDataToLcdController);
@@ -63,19 +60,13 @@ impl GameBoy {
                 // of objects to paint, etc.
                 self.ppu.paint_line(&mut self.memory);
                 while scanline_cycles <= 280 {
-                    scanline_cycles += self.cpu.step(&mut self.memory);
-                    if self.handle_interrupts() {
-                        scanline_cycles += 5 * 4;
-                    }
+                    scanline_cycles += self.step();
                 }
                 self.memory.set_lcd_mode(ppu::LcdMode::HBlank);
                 // TODO: This does not add up exactly, as we assume 60FPS
                 //       here, but it are actually slightly less.
                 while scanline_cycles < CPU_CYCLES_PER_SCANLINE {
-                    scanline_cycles += self.cpu.step(&mut self.memory);
-                    if self.handle_interrupts() {
-                        scanline_cycles += 5 * 4;
-                    }
+                    scanline_cycles += self.step();
                 }
                 scanline_cycles %= CPU_CYCLES_PER_SCANLINE;
             }
@@ -86,11 +77,7 @@ impl GameBoy {
             }
             last_frame_time = current_frame_time;
             self.ppu.refresh(&mut self.emulator_window);
-            if self.memory.set_key_presses(
-                self.emulator_window.get_key_presses())
-               && self.handle_interrupts() {
-                scanline_cycles += 5 * 4;
-            }
+            scanline_cycles += self.check_key_presses();
             if self.emulator_window.is_esc_pressed() {
                 break;
             }
@@ -103,13 +90,28 @@ impl GameBoy {
                     self.memory.write8(0xFF0F, requests);
                 }
                 while scanline_cycles < CPU_CYCLES_PER_SCANLINE {
-                    scanline_cycles += self.cpu.step(&mut self.memory);
-                    if self.handle_interrupts() {
-                        scanline_cycles += 5 * 4;
-                    }
+                    scanline_cycles += self.step();
                 }
                 scanline_cycles %= CPU_CYCLES_PER_SCANLINE;
             }
+        }
+    }
+
+    fn step(&mut self) -> usize {
+        let mut cycles = self.cpu.step(&mut self.memory);
+        if self.handle_interrupts() {
+            cycles += 5 * 4;
+        }
+        cycles
+    }
+
+    fn check_key_presses(&mut self) -> usize {
+        if self.memory.set_key_presses(
+            self.emulator_window.get_key_presses())
+           && self.handle_interrupts() {
+            5 * 4
+        } else {
+            0
         }
     }
 
