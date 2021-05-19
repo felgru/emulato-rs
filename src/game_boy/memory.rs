@@ -290,7 +290,7 @@ impl MemoryBus {
     pub fn set_lcd_mode(&mut self, mode: LcdMode) {
         if self.lcd_status().set_mode(mode) {
             // Request Stat interrupt.
-            self.memory[0xFFFF] |= 2;
+            self.memory[0xFF0F] |= 2;
         }
     }
 
@@ -312,7 +312,7 @@ impl MemoryBus {
         self.lcd_status().update_lyc_eq_ly(equal);
         if equal && self.lcd_status().lyc_eq_ly_interrupt_set() {
             // Request Stat interrupt.
-            self.memory[0xFFFF] |= 2;
+            self.memory[0xFF0F] |= 2;
         }
     }
 
@@ -379,7 +379,7 @@ impl MemoryBus {
         // "pressed button bits"
         if ((joypad_register & 0x0F) & joypad) != 0 {
             // Request Joypad interrupt
-            self.memory[0xFFFF] |= 1 << 4;
+            self.memory[0xFF0F] |= 1 << 4;
             true
         } else {
             false
@@ -459,12 +459,14 @@ impl MemoryBus {
 
     pub fn get_requested_interrupts(&self) -> u8 {
         let requests = self.read8(0xFF0F);
-        self.read8(0xFFFF) & requests & 0x1F
+        let enabled_interrupts = self.read8(0xFFFF);
+        requests & enabled_interrupts & 0x1F
     }
 
     pub fn handle_interrupts(&mut self) -> Option<InterruptAddress> {
         let mut requests = self.read8(0xFF0F);
-        let interrupts = self.read8(0xFFFF) & requests & 0x1F;
+        let enabled_interrupts = self.read8(0xFFFF);
+        let interrupts = requests & enabled_interrupts & 0x1F;
         if interrupts == 0 {
             return None;
         }
