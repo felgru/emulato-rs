@@ -1,6 +1,7 @@
 use super::cartridge::Cartridge;
 use super::graphics_data::MonochromePalette;
 use super::ppu::LcdMode;
+use super::timer::Timer;
 
 /// The memory bus of a Game Boy
 ///
@@ -21,10 +22,11 @@ use super::ppu::LcdMode;
 /// 0xFF80–0xFFFE  HRAM  High RAM Area (targetted by special load instructions)
 /// 0xFFFF         IE Register  Interrupt Enabled Register
 pub struct MemoryBus {
-  memory: [u8; 0x10000],
-  cartridge: Cartridge,
-  boot_rom: Option<[u8; 0x100]>,
-  joypad: u8,
+    memory: [u8; 0x10000],
+    cartridge: Cartridge,
+    boot_rom: Option<[u8; 0x100]>,
+    joypad: u8,
+    timer: Timer,
 }
 
 impl MemoryBus {
@@ -34,6 +36,7 @@ impl MemoryBus {
             cartridge,
             boot_rom: Some(boot_rom),
             joypad: 0,
+            timer: Timer::default(),
         }
     }
 
@@ -85,12 +88,17 @@ impl MemoryBus {
                 unimplemented!("reading from {:0>4X} not implemented, yet.",
                                address);
             }
-            0xFF04..=0xFF07 => { // Timer and Divider Registers
-                // 0xFF04  DIV – Divider Register
-                // 0xFF05  TIMA – Timer Counter
-                // 0xFF06  TMA – Timer Modulo
-                // 0xFF07  TAC – Timer Control
-                self.memory[address as usize]
+            0xFF04 => { // DIV – Divider Register
+                self.timer.get_divider()
+            }
+            0xFF05 => { // TIMA – Timer Counter
+                self.timer.get_timer()
+            }
+            0xFF06 => { // TMA – Timer Modulo
+                self.timer.get_modulo()
+            }
+            0xFF07 => { // TAC – Timer Control
+                self.timer.get_control()
             }
             0xFF08..=0xFF0E => {
                 unimplemented!("reading from {:0>4X} not implemented, yet.",
@@ -176,13 +184,16 @@ impl MemoryBus {
                     0xFF04 => { // DIV – Divider Register
                         // Writing any value to DIV register resets it to 0.
                         // https://gbdev.io/pandocs/#ff04-div-divider-register-r-w
-                        self.memory[address as usize] = 0;
+                        self.timer.reset_divider();
                     }
-                    0xFF05..=0xFF07 => {
-                        // 0xFF05 TIMA – Timer Counter
-                        // 0xFF06 TMA – Timer Modulo
-                        // 0xFF07 TAC – Timer Control
-                        self.memory[address as usize] = value;
+                    0xFF05 => { // TIMA – Timer Counter
+                        self.timer.set_timer(value);
+                    }
+                    0xFF06 => { // TMA – Timer Modulo
+                        self.timer.set_modulo(value);
+                    }
+                    0xFF07 => { // TAC – Timer Control
+                        self.timer.set_control(value);
                     }
                     0xFF0F => { // IF – Interrupt Flag
                         self.memory[address as usize] = value;
@@ -260,7 +271,8 @@ impl MemoryBus {
                 self.memory[address as usize] = value;
             }
             0xFFFF => { // IE Register
-                if value & !0x13 != 0 {
+                // TODO: should I mask value with 0x1F? Only bits 0–4 are used.
+                if value & 0x08 != 0 {
                     unimplemented!(
                         "Writing {:0>2X} to IE register not implemented.",
                         value);
@@ -277,6 +289,13 @@ impl MemoryBus {
     pub fn write16(&mut self, address: u16, value: u16) {
         self.write8(address, value as u8);
         self.write8(address+1, (value >> 8) as u8);
+    }
+
+    pub fn step(&mut self, cycles: usize) {
+        if self.timer.step(cycles) {
+            // request Timer interrupt
+            self.memory[0xFF0F] |= 4;
+        }
     }
 
     pub fn lcdc(&self) -> LcdControl {

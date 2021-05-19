@@ -7,6 +7,7 @@ pub mod emulator_window;
 pub mod graphics_data;
 pub mod memory;
 pub mod ppu;
+pub mod timer;
 
 use std::io;
 use std::fs::File;
@@ -99,8 +100,10 @@ impl GameBoy {
 
     fn step(&mut self) -> usize {
         let mut cycles = self.cpu.step(&mut self.memory);
+        self.memory.step(cycles);
         if self.handle_interrupts() {
             cycles += 5 * 4;
+            self.memory.step(5 * 4);
         }
         cycles
     }
@@ -109,6 +112,7 @@ impl GameBoy {
         if self.memory.set_key_presses(
             self.emulator_window.get_key_presses())
            && self.handle_interrupts() {
+            self.memory.step(5 * 4);
             5 * 4
         } else {
             0
