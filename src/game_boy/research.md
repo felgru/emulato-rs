@@ -27,6 +27,13 @@
 
 4 clock cycles = 1 machine cycle (length of NOP execution)
 
+# Graphics
+
+* https://web.archive.org/web/20181011213834/http://www.codeslinger.co.uk/pages/projects/gameboy/graphics.html
+* https://www.huderlem.com/demos/gameboy2bpp.html
+* https://kemenaran.winosx.com/posts/links-awakening-rendering-the-opening-cutscene
+* http://catskull.net/GB-Logo-Generator/
+
 # ROMs
 
 ## Boot ROM
@@ -47,6 +54,8 @@
 # Assemblers / Disassemblers
 
 * https://github.com/mattcurrie/mgbdis
+* https://github.com/devdri/awake
+* https://kemenaran.winosx.com/posts/category-disassembling-links-awakening/
 
 # Emulator Tutorials
 
