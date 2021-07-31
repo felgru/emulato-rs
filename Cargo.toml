@@ -8,6 +8,6 @@ edition = "2018"
 
 [dependencies]
 clap = "3.0.0-beta.2"
-minifb = "0.19.2"
+minifb = "0.19.3"
 rand = "0.8"
 rand_chacha = "0.3"
