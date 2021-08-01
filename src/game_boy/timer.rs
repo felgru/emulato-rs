@@ -38,9 +38,9 @@ impl Timer {
             self.timer = if !overflow {
                 new_timer
             } else {
+                interrupt = true;
                 self.modulo
             };
-            interrupt = true;
         }
         interrupt
     }
