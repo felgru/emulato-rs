@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 
 use super::display;
 use super::emulator_window::EmulatorWindow;
-use super::graphics_data;
 use super::memory::{LcdControl, MemoryBus};
 
 pub struct PPU {
