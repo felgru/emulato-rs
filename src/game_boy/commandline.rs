@@ -2,6 +2,9 @@ use std::fs::File;
 
 use clap::{App, Arg, ArgMatches};
 
+use super::emulator_window::EmulatorWindow;
+use super::GameBoy;
+
 pub fn game_boy_subcommand<'a>() -> App<'a> {
     App::new("gameboy")
     .about("A Game Boy emulator")
@@ -20,7 +23,7 @@ pub fn game_boy_subcommand<'a>() -> App<'a> {
 }
 
 pub fn run_game_boy_from_subcommand(subcommand: &ArgMatches) {
-    let mut builder = super::GameBoy::builder();
+    let mut builder = GameBoy::<EmulatorWindow>::builder();
     let filename = subcommand.value_of("cartridge-file").unwrap();
     let f = File::open(filename).unwrap();
     builder = builder.load_cartridge(f).unwrap();

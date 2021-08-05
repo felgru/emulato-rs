@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use super::display;
-use super::emulator_window::EmulatorWindow;
+use super::io::IO;
 use super::memory::{LcdControl, MemoryBus};
 
 pub struct PPU {
@@ -179,7 +179,7 @@ impl PPU {
         self.bg_palette = memory.bg_palette().as_array();
     }
 
-    pub fn refresh(&self, window: &mut EmulatorWindow) {
+    pub fn refresh<Window: IO>(&self, window: &mut Window) {
         self.display.refresh(window);
     }
 }
