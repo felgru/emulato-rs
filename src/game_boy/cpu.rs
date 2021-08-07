@@ -715,7 +715,9 @@ impl CPU {
                     adjustment |= 0x60;
                 }
                 if f & Flag::Subtract as u8 != 0 {
-                    self.registers.a -= adjustment;
+                    let (new_a, _)
+                        = self.registers.a.overflowing_sub(adjustment);
+                    self.registers.a = new_a;
                 } else {
                     if self.registers.a & 0x0F > 0x09 {
                         adjustment |= 0x06;
@@ -723,7 +725,9 @@ impl CPU {
                     if self.registers.a > 0x99 {
                         adjustment |= 0x60;
                     }
-                    self.registers.a += adjustment;
+                    let (new_a, _)
+                        = self.registers.a.overflowing_add(adjustment);
+                    self.registers.a = new_a;
                 }
                 let mut f = f & Flag::Subtract as u8;
                 if self.registers.a == 0 {
