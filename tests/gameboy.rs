@@ -6,6 +6,7 @@ use game_boy::io::{HEIGHT, WIDTH};
 
 const MOONEYE_DIR: &'static str = "/home/felix/games/roms/gameboy/test_roms/mooneye";
 const TEST_OK: &'static str = "88413F205E3822FF44203C4338422049224124FF44214422463C4A224128FF44213E4330422049224138FF44214B202049224124FF44203C423843304A3822FF";
+const TEST_DE_OK: &'static str = "BFA1513C543822523E543822FF512253224124522053224124FF5122452048224128523C452048224128FF512253224138522053224138FF512253224124522053224124FF513C4520493822523E4520493822FF";
 
 fn bytes_to_hex(bytes: &[u8]) -> String {
     let mut hex = String::with_capacity(2 * bytes.len());
@@ -298,6 +299,18 @@ fn mooneye_instr_daa() {
 }
 
 #[test]
+fn mooneye_interrupts_ie_push() {
+    let f = mooneye_test_rom("/acceptance/interrupts/ie_push.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
 fn mooneye_timer_div_write() {
     let f = mooneye_test_rom("/acceptance/timer/div_write.gb").unwrap();
     let window = TestEmulatorWindow::with_reference(TEST_OK);
@@ -312,7 +325,7 @@ fn mooneye_timer_div_write() {
 #[test]
 fn mooneye_timer_tim00() {
     let f = mooneye_test_rom("/acceptance/timer/tim00.gb").unwrap();
-    let window = TestEmulatorWindow::with_reference("BFA1513C543822523E543822FF512253224124522053224124FF5122452048224128523C452048224128FF512253224138522053224138FF512253224124522053224124FF513C4520493822523E4520493822FF");
+    let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
     let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
         .use_emulator_window(window)
         .use_fast_boot_rom()
@@ -325,7 +338,277 @@ fn mooneye_timer_tim00() {
 fn mooneye_timer_tim00_div_trigger() {
     let f = mooneye_test_rom("/acceptance/timer/tim00_div_trigger.gb").unwrap();
     // TODO: Calculate correct hex of screen dump with sameboy.
-    let window = TestEmulatorWindow::with_reference("BFA1513C543822523E543822FF512253224124522053224124FF5122452048224128523C452048224128FF512253224138522053224138FF512253224124522053224124FF513C4520493822523E4520493822FF");
+    let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_timer_tim01() {
+    let f = mooneye_test_rom("/acceptance/timer/tim01.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_timer_tim01_div_trigger() {
+    let f = mooneye_test_rom("/acceptance/timer/tim01_div_trigger.gb").unwrap();
+    // TODO: Calculate correct hex of screen dump with sameboy.
+    let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_timer_tim10() {
+    let f = mooneye_test_rom("/acceptance/timer/tim10.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_timer_tim10_div_trigger() {
+    let f = mooneye_test_rom("/acceptance/timer/tim10_div_trigger.gb").unwrap();
+    // TODO: Calculate correct hex of screen dump with sameboy.
+    let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_timer_tim11() {
+    let f = mooneye_test_rom("/acceptance/timer/tim11.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_timer_tim11_div_trigger() {
+    let f = mooneye_test_rom("/acceptance/timer/tim11_div_trigger.gb").unwrap();
+    // TODO: Calculate correct hex of screen dump with sameboy.
+    let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_timer_tima_reload() {
+    let f = mooneye_test_rom("/acceptance/timer/tima_reload.gb").unwrap();
+    // TODO: Calculate correct hex of screen dump with sameboy.
+    let window = TestEmulatorWindow::with_reference("TODO");
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_timer_tima_write_reloading() {
+    let f = mooneye_test_rom("/acceptance/timer/tima_write_reloading.gb").unwrap();
+    // TODO: Calculate correct hex of screen dump with sameboy.
+    let window = TestEmulatorWindow::with_reference("TODO");
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_timer_tma_write_reloading() {
+    let f = mooneye_test_rom("/acceptance/timer/tma_write_reloading.gb").unwrap();
+    // TODO: Calculate correct hex of screen dump with sameboy.
+    let window = TestEmulatorWindow::with_reference("TODO");
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_bits_bank1() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/bits_bank1.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_bits_bank2() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/bits_bank2.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_bits_mode() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/bits_mode.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_bits_ramg() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/bits_ramg.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_multicart_rom_8mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/multicart_rom_8Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_ram_64kb() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/ram_64kb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_ram_256kb() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/ram_256kb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_rom_512kb() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/rom_512kb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_rom_1mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/rom_1Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_rom_2mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/rom_2Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_rom_4mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/rom_4Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_rom_8mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/rom_8Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc1_rom_16mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc1/rom_16Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
     let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
         .use_emulator_window(window)
         .use_fast_boot_rom()
