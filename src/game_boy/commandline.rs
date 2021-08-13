@@ -23,7 +23,8 @@ pub fn game_boy_subcommand<'a>() -> App<'a> {
 }
 
 pub fn run_game_boy_from_subcommand(subcommand: &ArgMatches) {
-    let mut builder = GameBoy::<EmulatorWindow>::builder();
+    let mut builder = GameBoy::<EmulatorWindow>::builder()
+        .use_emulator_window(EmulatorWindow::default());
     let filename = subcommand.value_of("cartridge-file").unwrap();
     let f = File::open(filename).unwrap();
     builder = builder.load_cartridge(f).unwrap();
