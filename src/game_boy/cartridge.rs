@@ -27,7 +27,7 @@ impl Cartridge {
     pub fn read8(&self, address: u16) -> u8 {
         match address {
             0x0000..=0x3FFF => { // ROM Bank 0
-                self.rom[address as usize]
+                self.rom0_read8(address)
             }
             0x4000..=0x7FFF => { // ROM X (switchable via Memory Controller)
                 self.romx_read8(address)
@@ -55,7 +55,7 @@ impl Cartridge {
     }
 
     pub fn rom0_read8(&self, address: u16) -> u8 {
-        self.rom[address as usize]
+        self.memory_controller.rom0_read8(&self.rom, address)
     }
 
     pub fn romx_read8(&self, address: u16) -> u8 {
@@ -167,6 +167,16 @@ impl MemoryController {
         }
     }
 
+    fn rom0_read8(&self, rom: &[u8], address: u16) -> u8 {
+        use MemoryController::*;
+        match self {
+            MBC1(mbc1) => {
+                rom[address as usize + mbc1.rom0_bank_offset()]
+            }
+            _ => rom[address as usize],
+        }
+    }
+
     fn romx_read8(&self, rom: &[u8], address: u16) -> u8 {
         use MemoryController::*;
         match self {
@@ -259,6 +269,7 @@ impl From<u8> for MBC1BankingMode {
 }
 
 struct MBC1 {
+    rom0_bank: u8,
     rom_bank: u8,
     ram_bank: u8,
     num_rom_banks: u16,
@@ -270,19 +281,34 @@ impl MBC1 {
     fn from_cartridge_header(header: &CartridgeHeader) -> Self {
         let num_rom_banks = header.num_rom_banks();
         let num_ram_banks = header.num_ram_banks();
-        if num_rom_banks > 64 || num_ram_banks > 1 {
+        if num_rom_banks > 128 {
             unimplemented!(
                 "MBC1 with {} ROM banks and {} RAM banks not implemented yet.",
                 num_rom_banks, num_ram_banks);
 
         }
         Self{
+            rom0_bank: 0,
             rom_bank: 1,
             ram_bank: 0,
             num_rom_banks,
             num_ram_banks,
             banking_mode: MBC1BankingMode::Simple,
         }
+    }
+
+    /// Does the Cartridge have >= 1MB ROM?
+    fn has_large_rom(&self) -> bool {
+        self.num_rom_banks >= 64
+    }
+
+    /// Does the Cartridge have > 8kB RAM?
+    fn has_large_ram(&self) -> bool {
+        self.num_ram_banks > 1
+    }
+
+    fn rom0_bank_offset(&self) -> usize {
+        0x4000 * self.rom0_bank as usize
     }
 }
 
@@ -300,14 +326,13 @@ impl MemoryControllerRegisters for MBC1 {
                 }
             }
             0x2000..=0x3FFF => { // ROM Bank Number
-                // TODO: mask with max bits required for num_rom_banks
                 let mut bank = value & 0x1F;
                 if bank == 0 {
                     bank += 1;
                 }
-                // eprintln!("switching to ROM bank {}", bank);
+                let mask = (self.num_rom_banks - 1) as u8;
                 self.rom_bank &= 0xE0;
-                self.rom_bank |= bank;
+                self.rom_bank |= bank & mask;
             }
             0x4000..=0x5FFF => {
                 // RAM Bank Number | Upper Bits of ROM Bank Number
@@ -315,18 +340,33 @@ impl MemoryControllerRegisters for MBC1 {
                 match self.banking_mode {
                     MBC1BankingMode::Simple => {
                         // Upper Bits of ROM Bank Number
+                        let mask = (self.num_rom_banks - 1) as u8;
                         self.rom_bank &= 0x1F;
-                        self.rom_bank |= value << 5;
+                        self.rom_bank |= (value << 5) & mask;
                     }
                     MBC1BankingMode::Advanced => {
-                        // RAM Bank Number
-                        self.ram_bank = value;
+                        if self.has_large_ram() {
+                            // RAM Bank Number
+                            // TODO: Mask to fit available RAM.
+                            self.ram_bank = value;
+                        } else if self.has_large_rom() {
+                            // Upper Bits of ROM0/ROMX Bank Number
+                            let mask = (self.num_rom_banks - 1) as u8;
+                            let new_bank = (value << 5) & mask;
+                            self.rom_bank &= 0x1F;
+                            self.rom_bank |= new_bank;
+                            self.rom0_bank = new_bank;
+                        }
+                        // TODO: Handle multi-cart cartridges.
                     }
                 }
             }
             0x6000..=0x7FFF => { // Banking Mode Select
                 eprintln!("Select banking mode 0x{:0>2X}", value);
                 self.banking_mode = value.into();
+                if self.banking_mode == MBC1BankingMode::Simple {
+                    self.rom0_bank = 0;
+                }
             }
             _ => unreachable!("{:0>4X} is not a cartridge register.", address),
         }
@@ -375,13 +415,12 @@ impl MemoryControllerRegisters for MBC3 {
                 }
             }
             0x2000..=0x3FFF => { // ROM Bank Number
-                // TODO: mask with max bits required for num_rom_banks
                 let mut bank = value & 0x7F;
                 if bank == 0 {
                     bank += 1;
                 }
-                eprintln!("switching to ROM bank {}", bank);
-                self.rom_bank = bank;
+                let mask = (self.num_rom_banks - 1) as u8;
+                self.rom_bank = bank & mask;
             }
             0x4000..=0x5FFF => {
                 // RAM Bank Number | RTC Register Select
@@ -447,15 +486,14 @@ impl MemoryControllerRegisters for MBC5 {
                 }
             }
             0x2000..=0x2FFF => { // least significant byte of ROM Bank Number
-                // TODO: mask with max bits required for num_rom_banks
-                let bank = (self.rom_bank & !0xFF) | value as u16;
-                eprintln!("switching to ROM bank {}", bank);
+                let mask = self.num_rom_banks - 1;
+                let bank = (self.rom_bank & !0xFF) | (value as u16) & mask;
                 self.rom_bank = bank;
             }
             0x3000..=0x3FFF => { // 9th bit of ROM Bank Number
-                // TODO: mask with max bits required for num_rom_banks
-                let bank = (self.rom_bank & 0xFF) | (((value & 1) as u16) << 8);
-                eprintln!("switching to ROM bank {}", bank);
+                let mask = self.num_rom_banks - 1;
+                let bank = (self.rom_bank & 0xFF)
+                         | (((value & 1) as u16) << 8) & mask;
                 self.rom_bank = bank;
             }
             0x4000..=0x5FFF => { // RAM Bank Number
