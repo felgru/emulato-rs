@@ -211,6 +211,7 @@ impl BrailleDisplay {
 struct TestEmulatorWindow {
     display: BrailleDisplay,
     frame: usize,
+    min_wait_frames: usize,
     reference: String,
 }
 
@@ -219,6 +220,17 @@ impl TestEmulatorWindow {
         Self {
             display: BrailleDisplay::default(),
             frame: 0,
+            min_wait_frames: 0,
+            reference: reference.to_string(),
+        }
+    }
+
+    fn with_reference_and_min_frames(reference: &str,
+                                     min_frames: usize) -> Self {
+        Self {
+            display: BrailleDisplay::default(),
+            frame: 0,
+            min_wait_frames: min_frames,
             reference: reference.to_string(),
         }
     }
@@ -229,6 +241,7 @@ impl Default for TestEmulatorWindow {
         Self{
             display: BrailleDisplay::default(),
             frame: 0,
+            min_wait_frames: 0,
             reference: String::new(),
         }
     }
@@ -241,7 +254,7 @@ impl game_boy::io::IO for TestEmulatorWindow {
     }
 
     fn is_esc_pressed(&self) -> bool {
-        if self.display.is_blank() {
+        if self.display.is_blank() || self.frame < self.min_wait_frames {
             false
         } else {
             println!("After {} frames.", self.frame);
@@ -524,7 +537,7 @@ fn mooneye_mbc1_multicart_rom_8mb() {
 #[test]
 fn mooneye_mbc1_ram_64kb() {
     let f = mooneye_test_rom("/emulator-only/mbc1/ram_64kb.gb").unwrap();
-    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let window = TestEmulatorWindow::with_reference_and_min_frames(TEST_OK, 55);
     let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
         .use_emulator_window(window)
         .use_fast_boot_rom()
