@@ -168,4 +168,8 @@ impl<Window: io::IO> GameBoyBuilder<Window> {
         self.window = Some(window);
         self
     }
+
+    pub fn get_cartridge_header(&self) -> Option<cartridge::CartridgeHeader> {
+        self.cartridge.as_ref().map(|c| c.header())
+    }
 }

@@ -579,6 +579,7 @@ impl<'a> CartridgeHeader<'a> {
     }
 }
 
+#[derive(Debug)]
 pub enum ColorCompat {
     DGM,
     CGBcompat,
