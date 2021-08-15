@@ -198,7 +198,11 @@ impl MemoryController {
         match self {
             NoController => ram[address as usize],
             MBC1(mbc1) => {
-                ram[address as usize - 0xA000 + mbc1.ram_bank_offset()]
+                if mbc1.ram_enabled {
+                    ram[address as usize - 0xA000 + mbc1.ram_bank_offset()]
+                } else {
+                    0xFF
+                }
             }
             MBC3(mbc3) => {
                 ram[address as usize - 0xA000 + mbc3.ram_bank_offset()]
@@ -228,8 +232,10 @@ impl MemoryController {
                 "Writing {:0>2X} to {:0>4X} without memory controller.",
                 value, address),
             MBC1(mbc1) => {
-                ram[address as usize - 0xA000 + mbc1.ram_bank_offset()]
-                    = value;
+                if mbc1.ram_enabled {
+                    ram[address as usize - 0xA000 + mbc1.ram_bank_offset()]
+                        = value;
+                }
             }
             MBC3(mbc3) => {
                 ram[address as usize - 0xA000 + mbc3.ram_bank_offset()]
@@ -275,6 +281,7 @@ struct MBC1 {
     num_rom_banks: u16,
     num_ram_banks: u8,
     banking_mode: MBC1BankingMode,
+    ram_enabled: bool,
 }
 
 impl MBC1 {
@@ -294,6 +301,7 @@ impl MBC1 {
             num_rom_banks,
             num_ram_banks,
             banking_mode: MBC1BankingMode::Simple,
+            ram_enabled: false,
         }
     }
 
@@ -318,11 +326,12 @@ impl MemoryControllerRegisters for MBC1 {
             0x0000..=0x1FFF => { // RAM Enable
                 // 0x00  Disable RAM (default)
                 // 0x0A  Enable RAM
-                match value {
-                    0x00 => eprintln!("disable cartridge RAM."),
-                    0x0A => eprintln!("enable cartridge RAM."),
-                    _ => eprintln!("Unexpected RAM enable/disable value {}",
-                                   value),
+                if value & 0x0F == 0x0A {
+                    eprintln!("enable cartridge RAM.");
+                    self.ram_enabled = true;
+                } else {
+                    eprintln!("disable cartridge RAM.");
+                    self.ram_enabled = false;
                 }
             }
             0x2000..=0x3FFF => { // ROM Bank Number
