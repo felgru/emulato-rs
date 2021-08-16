@@ -197,19 +197,9 @@ impl MemoryController {
         use MemoryController::*;
         match self {
             NoController => ram[address as usize],
-            MBC1(mbc1) => {
-                if mbc1.ram_enabled {
-                    ram[address as usize - 0xA000 + mbc1.ram_bank_offset()]
-                } else {
-                    0xFF
-                }
-            }
-            MBC3(mbc3) => {
-                ram[address as usize - 0xA000 + mbc3.ram_bank_offset()]
-            }
-            MBC5(mbc5) => {
-                ram[address as usize - 0xA000 + mbc5.ram_bank_offset()]
-            }
+            MBC1(mbc1) => mbc1.ram_read8(ram, address),
+            MBC3(mbc3) => mbc3.ram_read8(ram, address),
+            MBC5(mbc5) => mbc5.ram_read8(ram, address),
         }
     }
 
@@ -225,26 +215,15 @@ impl MemoryController {
         }
     }
 
-    fn ram_write8(&mut self, ram: &mut [u8], address: u16, value: u8) {
+    fn ram_write8(&self, ram: &mut [u8], address: u16, value: u8) {
         use MemoryController::*;
         match self {
             NoController => unimplemented!(
                 "Writing {:0>2X} to {:0>4X} without memory controller.",
                 value, address),
-            MBC1(mbc1) => {
-                if mbc1.ram_enabled {
-                    ram[address as usize - 0xA000 + mbc1.ram_bank_offset()]
-                        = value;
-                }
-            }
-            MBC3(mbc3) => {
-                ram[address as usize - 0xA000 + mbc3.ram_bank_offset()]
-                    = value;
-            }
-            MBC5(mbc5) => {
-                ram[address as usize - 0xA000 + mbc5.ram_bank_offset()]
-                    = value;
-            }
+            MBC1(mbc1) => mbc1.ram_write8(ram, address, value),
+            MBC3(mbc3) => mbc3.ram_write8(ram, address, value),
+            MBC5(mbc5) => mbc5.ram_write8(ram, address, value),
         }
     }
 }
@@ -255,6 +234,22 @@ trait MemoryControllerRegisters {
     fn rom_bank_offset(&self) -> usize;
 
     fn ram_bank_offset(&self) -> usize;
+
+    fn is_ram_enabled(&self) -> bool;
+
+    fn ram_read8(&self, ram: &[u8], address: u16) -> u8 {
+        if self.is_ram_enabled() {
+            ram[address as usize - 0xA000 + self.ram_bank_offset()]
+        } else {
+            0xFF
+        }
+    }
+
+    fn ram_write8(&self, ram: &mut [u8], address: u16, value: u8) {
+        if self.is_ram_enabled() {
+            ram[address as usize - 0xA000 + self.ram_bank_offset()] = value;
+        }
+    }
 }
 
 #[repr(u8)]
@@ -388,6 +383,10 @@ impl MemoryControllerRegisters for MBC1 {
     fn ram_bank_offset(&self) -> usize {
         0x2000 * self.ram_bank as usize
     }
+
+    fn is_ram_enabled(&self) -> bool {
+        self.ram_enabled
+    }
 }
 
 struct MBC3 {
@@ -395,6 +394,7 @@ struct MBC3 {
     ram_bank: u8,
     num_rom_banks: u16,
     num_ram_banks: u8,
+    ram_enabled: bool,
 }
 
 impl MBC3 {
@@ -406,6 +406,7 @@ impl MBC3 {
             ram_bank: 0,
             num_rom_banks,
             num_ram_banks,
+            ram_enabled: false,
         }
     }
 }
@@ -416,11 +417,12 @@ impl MemoryControllerRegisters for MBC3 {
             0x0000..=0x1FFF => { // RAM and Timer Enable
                 // 0x00  Disable RAM (default)
                 // 0x0A  Enable RAM
-                match value {
-                    0x00 => eprintln!("disable cartridge RAM."),
-                    0x0A => eprintln!("enable cartridge RAM."),
-                    _ => eprintln!("Unexpected RAM enable/disable value {}",
-                                   value),
+                if value & 0x0F == 0x0A {
+                    eprintln!("enable cartridge RAM.");
+                    self.ram_enabled = true;
+                } else {
+                    eprintln!("disable cartridge RAM.");
+                    self.ram_enabled = false;
                 }
             }
             0x2000..=0x3FFF => { // ROM Bank Number
@@ -459,6 +461,10 @@ impl MemoryControllerRegisters for MBC3 {
     fn ram_bank_offset(&self) -> usize {
         0x2000 * self.ram_bank as usize
     }
+
+    fn is_ram_enabled(&self) -> bool {
+        self.ram_enabled
+    }
 }
 
 struct MBC5 {
@@ -466,6 +472,7 @@ struct MBC5 {
     ram_bank: u8,
     num_rom_banks: u16,
     num_ram_banks: u8,
+    ram_enabled: bool,
 }
 
 impl MBC5 {
@@ -477,6 +484,7 @@ impl MBC5 {
             ram_bank: 0,
             num_rom_banks,
             num_ram_banks,
+            ram_enabled: false,
         }
     }
 }
@@ -487,11 +495,12 @@ impl MemoryControllerRegisters for MBC5 {
             0x0000..=0x1FFF => { // RAM and Timer Enable
                 // 0x00  Disable RAM (default)
                 // 0x0A  Enable RAM
-                match value {
-                    0x00 => eprintln!("disable cartridge RAM."),
-                    0x0A => eprintln!("enable cartridge RAM."),
-                    _ => eprintln!("Unexpected RAM enable/disable value {}",
-                                   value),
+                if value & 0x0F == 0x0A {
+                    eprintln!("enable cartridge RAM.");
+                    self.ram_enabled = true;
+                } else {
+                    eprintln!("disable cartridge RAM.");
+                    self.ram_enabled = false;
                 }
             }
             0x2000..=0x2FFF => { // least significant byte of ROM Bank Number
@@ -521,6 +530,10 @@ impl MemoryControllerRegisters for MBC5 {
 
     fn ram_bank_offset(&self) -> usize {
         0x2000 * self.ram_bank as usize
+    }
+
+    fn is_ram_enabled(&self) -> bool {
+        self.ram_enabled
     }
 }
 
