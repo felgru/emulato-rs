@@ -16,7 +16,11 @@ impl Cartridge {
         let header = CartridgeHeader{rom: &rom};
         let memory_controller
             = MemoryController::from_cartridge_header(&header);
-        let ram = vec![0; header.num_ram_banks() as usize * 8 * 1024];
+        let ram = if let MemoryController::MBC2(_) = memory_controller {
+            vec![0; 512]
+        } else {
+            vec![0; header.num_ram_banks() as usize * 8 * 1024]
+        };
         Ok(Self{
             rom,
             ram,
@@ -149,6 +153,7 @@ pub enum MemoryControllerModel {
 enum MemoryController {
     NoController,
     MBC1(MBC1),
+    MBC2(MBC2),
     MBC3(MBC3),
     MBC5(MBC5),
 }
@@ -160,6 +165,7 @@ impl MemoryController {
         match controller_model {
             Model::NoController => Self::NoController,
             Model::MBC1 => Self::MBC1(MBC1::from_cartridge_header(header)),
+            Model::MBC2 => Self::MBC2(MBC2::from_cartridge_header(header)),
             Model::MBC3 => Self::MBC3(MBC3::from_cartridge_header(header)),
             Model::MBC5 => Self::MBC5(MBC5::from_cartridge_header(header)),
             _ => unimplemented!("Memory controller {:?} not handled yet.",
@@ -184,6 +190,9 @@ impl MemoryController {
             MBC1(mbc1) => {
                 rom[address as usize - 0x4000 + mbc1.rom_bank_offset()]
             }
+            MBC2(mbc2) => {
+                rom[address as usize - 0x4000 + mbc2.rom_bank_offset()]
+            }
             MBC3(mbc3) => {
                 rom[address as usize - 0x4000 + mbc3.rom_bank_offset()]
             }
@@ -198,6 +207,7 @@ impl MemoryController {
         match self {
             NoController => ram[address as usize],
             MBC1(mbc1) => mbc1.ram_read8(ram, address),
+            MBC2(mbc2) => mbc2.ram_read8(ram, address),
             MBC3(mbc3) => mbc3.ram_read8(ram, address),
             MBC5(mbc5) => mbc5.ram_read8(ram, address),
         }
@@ -210,6 +220,7 @@ impl MemoryController {
                 "Writing {:0>2X} to {:0>4X} without memory controller.",
                 value, address),
             MBC1(mbc1) => mbc1.register_write8(address, value),
+            MBC2(mbc2) => mbc2.register_write8(address, value),
             MBC3(mbc3) => mbc3.register_write8(address, value),
             MBC5(mbc5) => mbc5.register_write8(address, value),
         }
@@ -222,6 +233,7 @@ impl MemoryController {
                 "Writing {:0>2X} to {:0>4X} without memory controller.",
                 value, address),
             MBC1(mbc1) => mbc1.ram_write8(ram, address, value),
+            MBC2(mbc2) => mbc2.ram_write8(ram, address, value),
             MBC3(mbc3) => mbc3.ram_write8(ram, address, value),
             MBC5(mbc5) => mbc5.ram_write8(ram, address, value),
         }
@@ -386,6 +398,90 @@ impl MemoryControllerRegisters for MBC1 {
 
     fn is_ram_enabled(&self) -> bool {
         self.ram_enabled
+    }
+}
+
+struct MBC2 {
+    rom_bank: u8,
+    num_rom_banks: u16,
+    ram_enabled: bool,
+}
+
+impl MBC2 {
+    fn from_cartridge_header(header: &CartridgeHeader) -> Self {
+        let num_rom_banks = header.num_rom_banks();
+        let num_ram_banks = header.num_ram_banks();
+        assert_eq!(num_ram_banks, 0);
+        if num_rom_banks > 16 {
+            unimplemented!(
+                "MBC2 with {} ROM banks not implemented yet.",
+                num_rom_banks);
+
+        }
+        Self{
+            rom_bank: 1,
+            num_rom_banks,
+            ram_enabled: false,
+        }
+    }
+}
+
+impl MemoryControllerRegisters for MBC2 {
+    fn register_write8(&mut self, address: u16, value: u8) {
+        match address {
+            0x0000..=0x3FFF => { // RAM Enable / ROM Bank Number
+                if address & (1 << 8) == 0 { // RAM Enable
+                    // 0x00  Disable RAM (default)
+                    // 0x0A  Enable RAM
+                    if value == 0x0A {
+                        eprintln!("enable cartridge RAM.");
+                        self.ram_enabled = true;
+                    } else {
+                        eprintln!("disable cartridge RAM.");
+                        self.ram_enabled = false;
+                    }
+                } else { // ROM Bank Number
+                    let mut bank = value & 0x0F;
+                    if bank == 0 {
+                        bank += 1;
+                    }
+                    let mask = (self.num_rom_banks - 1) as u8;
+                    self.rom_bank = bank & mask;
+                }
+            }
+            0x4000..=0x7FFF => {
+                // This address is not used as a register.
+            }
+            _ => unreachable!("{:0>4X} is not a cartridge register.", address),
+        }
+    }
+
+    fn rom_bank_offset(&self) -> usize {
+        0x4000 * self.rom_bank as usize
+    }
+
+    fn ram_bank_offset(&self) -> usize {
+        0
+    }
+
+    fn is_ram_enabled(&self) -> bool {
+        self.ram_enabled
+    }
+
+    fn ram_read8(&self, ram: &[u8], address: u16) -> u8 {
+        let offset = (address & 0x01FF) as usize;
+        if self.is_ram_enabled() && offset < 512 {
+            ram[offset]
+        } else {
+            0x0F
+        }
+    }
+
+    fn ram_write8(&self, ram: &mut [u8], address: u16, value: u8) {
+        let offset = (address & 0x01FF) as usize;
+        if self.is_ram_enabled() && offset < 512 {
+            ram[offset] = value & 0x0F;
+        }
     }
 }
 
