@@ -72,8 +72,8 @@ impl MemoryBus {
             }
             // 0xE000–0xFDFF  ECHO  echos Working RAM, discouraged to be used
             0xE000..=0xFDFF => {
-                unimplemented!("reading from ECHO {:0>4X} not implemented, yet.",
-                               address);
+                // Remap to 0xC000–0xDDFF.
+                self.memory[(address - 0xE000 + 0xC000) as usize]
             }
             // 0xFE00–0xFE9F  OAM  Object Attribute Memory (description of sprites)
             0xFE00..=0xFE9F => {
@@ -171,7 +171,8 @@ impl MemoryBus {
                 self.memory[address as usize] = value;
             }
             0xE000..=0xFDFF => { // Echo
-                unimplemented!("Writing to Echo not implemented.");
+                // Remap to 0xC000–0xDDFF.
+                self.memory[(address - 0xE000 + 0xC000) as usize] = value;
             }
             0xFE00..=0xFE9F => { // OAM
                 self.memory[address as usize] = value;
