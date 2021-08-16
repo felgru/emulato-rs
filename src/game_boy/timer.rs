@@ -13,7 +13,7 @@ impl Default for Timer {
             timer_counter: 1024,
             timer: 0,
             modulo: 0,
-            control: 0,
+            control: 0xF8,  // Only lowest 3 bits are used, rest is 1.
         }
     }
 }
@@ -74,8 +74,8 @@ impl Timer {
     }
 
     pub fn set_control(&mut self, value: u8) {
-        // TODO: What happens to the unused bits 3–7?
-        self.control = value;
+        // The unused bits 3–7 are always 1.
+        self.control = value | 0xF8;
     }
 
     fn is_timer_enabled(&self) -> bool {

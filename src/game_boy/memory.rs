@@ -33,6 +33,8 @@ impl MemoryBus {
     pub fn new(cartridge: Cartridge, boot_rom: [u8; 0x100]) -> Self {
         let mut memory = [0; 0x10000];
         memory[0xFF00] = 0xCF;  // upper two bits of JoyPad always 1
+        memory[0xFF0F] = 0xE0;  // highest three bits of IF always 1
+        memory[0xFF41] = 0x80;  // highest bit of LCD Status always 1
         Self{
             memory,
             cartridge,
@@ -204,7 +206,8 @@ impl MemoryBus {
                         self.timer.set_control(value);
                     }
                     0xFF0F => { // IF – Interrupt Flag
-                        self.memory[address as usize] = value;
+                        // Highest 3 bits are unused and always 1.
+                        self.memory[address as usize] = 0xE0 | value;
                     }
                     0xFF10..=0xFF26 => { // Sound
                         // TODO: ignoring sound for now
@@ -224,7 +227,8 @@ impl MemoryBus {
                     0xFF41 => { // LCD Status
                         // lowest 3 bits are read-only
                         let value = value & !0x07;
-                        self.memory[address as usize] &= 0x07;
+                        // highest bit is unused and always 1
+                        self.memory[address as usize] &= 0x87;
                         self.memory[address as usize] |= value;
                     }
                     0xFF44 => { // LY (LCDC Y-Coordinate) (R)
