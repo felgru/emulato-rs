@@ -31,8 +31,10 @@ pub struct MemoryBus {
 
 impl MemoryBus {
     pub fn new(cartridge: Cartridge, boot_rom: [u8; 0x100]) -> Self {
+        let mut memory = [0; 0x10000];
+        memory[0xFF00] = 0xCF;  // upper two bits of JoyPad always 1
         Self{
-            memory: [0; 0x10000],
+            memory,
             cartridge,
             boot_rom: Some(boot_rom),
             joypad: 0,
@@ -178,7 +180,8 @@ impl MemoryBus {
             0xFF00..=0xFF7F => { // I/O Registers
                 match address {
                     0xFF00 => { // Joypad
-                        self.memory[address as usize] = value;
+                        // highest two bits of joypad register are always 1.
+                        self.memory[address as usize] = 0xC0 | value;
                         self.update_joypad_register();
                     }
                     0xFF01..=0xFF02 => { // Serial Transfer
@@ -396,11 +399,11 @@ impl MemoryBus {
         if (joypad_register & 0x20) == 0 { // Action keys
             joypad |= (self.joypad >> 4) & 0x0F;
         }
-        self.memory[0xFF00] = joypad_register & 0x30 | (!joypad & 0x0F);
+        self.memory[0xFF00] = (joypad_register & 0xF0) | (!joypad & 0x0F);
         if joypad != 0 {
             eprintln!("Joypad register: {:0>2X}", self.memory[0xFF00]);
         }
-        // Raise interrup when "unpressed button" bits become
+        // Raise interrupt when "unpressed button" bits become
         // "pressed button bits"
         if ((joypad_register & 0x0F) & joypad) != 0 {
             // Request Joypad interrupt
