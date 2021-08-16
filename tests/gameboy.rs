@@ -9,6 +9,7 @@ const TEST_OK: &'static str = "88413F205E3822FF44203C4338422049224124FF442144224
 const TEST_DE_OK: &'static str = "BFA1513C543822523E543822FF512253224124522053224124FF5122452048224128523C452048224128FF512253224138522053224138FF512253224124522053224124FF513C4520493822523E4520493822FF";
 const TEST_BCD_OK: &'static str = "BF99513C5438225338533822FF512253224124522253224124FF513C4520482241285120462048224128FF512253224138512054224138FF512253224124522253224124FF513C452049382253384420493822FF82513C543822FF512253224124FF5122452048224128FF512253224138FF512253224124FF513C4520493822FF";
 const TEST_CE_OK: &'static str = "BF997F4B38533822FF7F4A2253224124FF7F4920462048224128FF7F492054224138FF7F4A2253224124FF7F4B384420493822FF827F4A3E543822FF7F4A2053224124FF7F4A3C452048224128FF7F4A2053224138FF7F4A2053224124FF7F4A3E4520493822FF";
+const TEST_B_OK: &'static str = "BF99513C543822FF512253224124FF513C452048224128FF512253224138FF512253224124FF513C4520493822FF";
 
 fn bytes_to_hex(bytes: &[u8]) -> String {
     let mut hex = String::with_capacity(2 * bytes.len());
@@ -307,6 +308,55 @@ fn mooneye_bits_unused_hwio_gs() {
     // TODO: Not sure if this is correct, as this test even fails on Sameboy
     //       when writing to register 0xFF4F.
     let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_halt_ime0_ei() {
+    let f = mooneye_test_rom("/acceptance/halt_ime0_ei.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_halt_ime0_nointr_timing() {
+    let f = mooneye_test_rom("/acceptance/halt_ime0_nointr_timing.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_halt_ime1_timing() {
+    let f = mooneye_test_rom("/acceptance/halt_ime1_timing.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_B_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_halt_ime1_timing2_gs() {
+    let f = mooneye_test_rom("/acceptance/halt_ime1_timing2-GS.gb").unwrap();
+    let TEST_BCDE_OK = "TODO";
+    let window = TestEmulatorWindow::with_reference(TEST_BCDE_OK);
     let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
         .use_emulator_window(window)
         .use_fast_boot_rom()
