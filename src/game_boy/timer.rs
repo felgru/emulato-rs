@@ -29,9 +29,27 @@ impl Timer {
         if self.stopped {
             return false;
         }
-        self.clock = self.clock.wrapping_add(cycles as u16);
-        // TODO: Can the timer increment multiple times when processing a slow
-        //       instruction?
+        if self.timer_trigger == 1 << 3 {
+            // The timer could increment multiple times when processing a slow
+            // instructions.
+            let mut interrupt = false;
+            let mut cycles = cycles;
+            // TODO: It might be faster to update the clock in increments
+            //       of 8 and handle the case of cycles not divisible by 8
+            //       with one increment of 4.
+            while cycles > 0 {
+                cycles -= 4;
+                self.clock = self.clock.wrapping_add(4);
+                interrupt |= self.update_timer();
+            }
+            interrupt
+        } else {
+            self.clock = self.clock.wrapping_add(cycles as u16);
+            self.update_timer()
+        }
+    }
+
+    fn update_timer(&mut self) -> bool {
         // Coupling of clock and timer according to
         // https://gbdev.io/pandocs/Timer_Obscure_Behaviour.html
         let new_timer_trigger_bit
@@ -95,9 +113,10 @@ impl Timer {
     pub fn set_control(&mut self, value: u8) {
         // The unused bits 3–7 are always 1.
         self.control = value | 0xF8;
-        // TODO: There are probably weird corner cases to handle
-        //       if the new trigger makes the timer overflow.
         self.timer_trigger = self.get_timer_trigger_bit();
+        // TODO: this makes Mooneye's timer/rapid_toggle.gb fail.
+        // self.update_timer();
+        // TODO: Trigger timer interrupt.
     }
 
     fn is_timer_enabled(&self) -> bool {

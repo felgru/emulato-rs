@@ -517,7 +517,6 @@ fn mooneye_timer_tim00() {
 #[test]
 fn mooneye_timer_tim00_div_trigger() {
     let f = mooneye_test_rom("/acceptance/timer/tim00_div_trigger.gb").unwrap();
-    // TODO: Calculate correct hex of screen dump with sameboy.
     let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
     let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
         .use_emulator_window(window)
@@ -542,7 +541,6 @@ fn mooneye_timer_tim01() {
 #[test]
 fn mooneye_timer_tim01_div_trigger() {
     let f = mooneye_test_rom("/acceptance/timer/tim01_div_trigger.gb").unwrap();
-    // TODO: Calculate correct hex of screen dump with sameboy.
     let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
     let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
         .use_emulator_window(window)
@@ -567,7 +565,6 @@ fn mooneye_timer_tim10() {
 #[test]
 fn mooneye_timer_tim10_div_trigger() {
     let f = mooneye_test_rom("/acceptance/timer/tim10_div_trigger.gb").unwrap();
-    // TODO: Calculate correct hex of screen dump with sameboy.
     let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
     let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
         .use_emulator_window(window)
@@ -592,7 +589,6 @@ fn mooneye_timer_tim11() {
 #[test]
 fn mooneye_timer_tim11_div_trigger() {
     let f = mooneye_test_rom("/acceptance/timer/tim11_div_trigger.gb").unwrap();
-    // TODO: Calculate correct hex of screen dump with sameboy.
     let window = TestEmulatorWindow::with_reference(TEST_DE_OK);
     let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
         .use_emulator_window(window)
