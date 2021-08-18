@@ -13,9 +13,8 @@ impl Cartridge {
     pub fn load_from_file(mut file: File) -> io::Result<Self> {
         let mut rom = Vec::new();
         file.read_to_end(&mut rom)?;
+        let memory_controller = MemoryController::from_cartridge_rom(&rom);
         let header = CartridgeHeader{rom: &rom};
-        let memory_controller
-            = MemoryController::from_cartridge_header(&header);
         let ram = if let MemoryController::MBC2(_) = memory_controller {
             vec![0; 512]
         } else {
@@ -159,15 +158,16 @@ enum MemoryController {
 }
 
 impl MemoryController {
-    fn from_cartridge_header(header: &CartridgeHeader) -> Self {
+    fn from_cartridge_rom(rom: &[u8]) -> Self {
+        let header = CartridgeHeader{rom};
         let controller_model = header.cartridge_type().memory_controller();
         use MemoryControllerModel as Model;
         match controller_model {
             Model::NoController => Self::NoController,
-            Model::MBC1 => Self::MBC1(MBC1::from_cartridge_header(header)),
-            Model::MBC2 => Self::MBC2(MBC2::from_cartridge_header(header)),
-            Model::MBC3 => Self::MBC3(MBC3::from_cartridge_header(header)),
-            Model::MBC5 => Self::MBC5(MBC5::from_cartridge_header(header)),
+            Model::MBC1 => Self::MBC1(MBC1::from_cartridge_rom(rom)),
+            Model::MBC2 => Self::MBC2(MBC2::from_cartridge_header(&header)),
+            Model::MBC3 => Self::MBC3(MBC3::from_cartridge_header(&header)),
+            Model::MBC5 => Self::MBC5(MBC5::from_cartridge_header(&header)),
             _ => unimplemented!("Memory controller {:?} not handled yet.",
                                 controller_model),
         }
@@ -289,10 +289,12 @@ struct MBC1 {
     num_ram_banks: u8,
     banking_mode: MBC1BankingMode,
     ram_enabled: bool,
+    is_multi_cart: bool,
 }
 
 impl MBC1 {
-    fn from_cartridge_header(header: &CartridgeHeader) -> Self {
+    fn from_cartridge_rom(rom: &[u8]) -> Self {
+        let header = CartridgeHeader{rom};
         let num_rom_banks = header.num_rom_banks();
         let num_ram_banks = header.num_ram_banks();
         if num_rom_banks > 128 {
@@ -301,6 +303,12 @@ impl MBC1 {
                 num_rom_banks, num_ram_banks);
 
         }
+        let is_multi_cart = if rom.len() >= 0x11 * 0x4000 {
+            let bank_10_header = CartridgeHeader{rom: &rom[0x10 * 0x4000..]};
+            bank_10_header.is_logo_correct()
+        } else {
+            false
+        };
         Self{
             rom0_bank: 0,
             rom_bank: 1,
@@ -309,6 +317,7 @@ impl MBC1 {
             num_ram_banks,
             banking_mode: MBC1BankingMode::Simple,
             ram_enabled: false,
+            is_multi_cart,
         }
     }
 
@@ -353,12 +362,17 @@ impl MemoryControllerRegisters for MBC1 {
             0x4000..=0x5FFF => {
                 // RAM Bank Number | Upper Bits of ROM Bank Number
                 let value = value & 0x03;
+                let (num_rom_bits, rom_bank_mask) = if self.is_multi_cart {
+                    (4, 0x0F)
+                } else {
+                    (5, 0x1F)
+                };
                 match self.banking_mode {
                     MBC1BankingMode::Simple => {
                         // Upper Bits of ROM Bank Number
                         let mask = (self.num_rom_banks - 1) as u8;
-                        self.rom_bank &= 0x1F;
-                        self.rom_bank |= (value << 5) & mask;
+                        self.rom_bank &= rom_bank_mask;
+                        self.rom_bank |= (value << num_rom_bits) & mask;
                     }
                     MBC1BankingMode::Advanced => {
                         if self.has_large_ram() {
@@ -368,8 +382,8 @@ impl MemoryControllerRegisters for MBC1 {
                         } else if self.has_large_rom() {
                             // Upper Bits of ROM0/ROMX Bank Number
                             let mask = (self.num_rom_banks - 1) as u8;
-                            let new_bank = (value << 5) & mask;
-                            self.rom_bank &= 0x1F;
+                            let new_bank = (value << num_rom_bits) & mask;
+                            self.rom_bank &= rom_bank_mask;
                             self.rom_bank |= new_bank;
                             self.rom0_bank = new_bank;
                         }
