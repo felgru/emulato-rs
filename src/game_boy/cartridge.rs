@@ -377,8 +377,8 @@ impl MemoryControllerRegisters for MBC1 {
                     MBC1BankingMode::Advanced => {
                         if self.has_large_ram() {
                             // RAM Bank Number
-                            // TODO: Mask to fit available RAM.
-                            self.ram_bank = value;
+                            let mask = (self.num_ram_banks - 1) as u8;
+                            self.ram_bank = value & mask;
                         } else if self.has_large_rom() {
                             // Upper Bits of ROM0/ROMX Bank Number
                             let mask = (self.num_rom_banks - 1) as u8;
@@ -407,7 +407,11 @@ impl MemoryControllerRegisters for MBC1 {
     }
 
     fn ram_bank_offset(&self) -> usize {
-        0x2000 * self.ram_bank as usize
+        if self.banking_mode == MBC1BankingMode::Advanced {
+            0x2000 * self.ram_bank as usize
+        } else {
+            0
+        }
     }
 
     fn is_ram_enabled(&self) -> bool {
