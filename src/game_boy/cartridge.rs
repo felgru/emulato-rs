@@ -451,7 +451,7 @@ impl MemoryControllerRegisters for MBC2 {
                 if address & (1 << 8) == 0 { // RAM Enable
                     // 0x00  Disable RAM (default)
                     // 0x0A  Enable RAM
-                    if value == 0x0A {
+                    if value & 0x0F == 0x0A {
                         eprintln!("enable cartridge RAM.");
                         self.ram_enabled = true;
                     } else {
@@ -487,17 +487,17 @@ impl MemoryControllerRegisters for MBC2 {
     }
 
     fn ram_read8(&self, ram: &[u8], address: u16) -> u8 {
-        let offset = (address & 0x01FF) as usize;
-        if self.is_ram_enabled() && offset < 512 {
-            ram[offset]
+        if self.is_ram_enabled() {
+            let offset = (address & 0x01FF) as usize;
+            ram[offset] | 0xF0
         } else {
-            0x0F
+            0xFF
         }
     }
 
     fn ram_write8(&self, ram: &mut [u8], address: u16, value: u8) {
-        let offset = (address & 0x01FF) as usize;
-        if self.is_ram_enabled() && offset < 512 {
+        if self.is_ram_enabled() {
+            let offset = (address & 0x01FF) as usize;
             ram[offset] = value & 0x0F;
         }
     }
