@@ -195,16 +195,25 @@ impl MemoryBus {
                     0xFF04 => { // DIV – Divider Register
                         // Writing any value to DIV register resets it to 0.
                         // https://gbdev.io/pandocs/#ff04-div-divider-register-r-w
-                        self.timer.reset_divider();
+                        if self.timer.reset_divider() {
+                            // request Timer interrupt
+                            self.memory[0xFF0F] |= 4;
+                        }
                     }
                     0xFF05 => { // TIMA – Timer Counter
-                        self.timer.set_timer(value);
+                        if self.timer.set_timer(value) {
+                            // request Timer interrupt
+                            self.memory[0xFF0F] |= 4;
+                        }
                     }
                     0xFF06 => { // TMA – Timer Modulo
                         self.timer.set_modulo(value);
                     }
                     0xFF07 => { // TAC – Timer Control
-                        self.timer.set_control(value);
+                        if self.timer.set_control(value) {
+                            // request Timer interrupt
+                            self.memory[0xFF0F] |= 4;
+                        }
                     }
                     0xFF0F => { // IF – Interrupt Flag
                         // Highest 3 bits are unused and always 1.

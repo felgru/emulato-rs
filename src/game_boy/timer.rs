@@ -3,6 +3,7 @@ pub struct Timer {
     timer_counter: u16,
     timer_trigger: u16,
     timer_trigger_bit: bool,
+    timer_overflow_scheduled: bool,
     timer: u8,
     modulo: u8,
     control: u8,
@@ -16,6 +17,7 @@ impl Default for Timer {
             timer_counter: 0,
             timer_trigger: 1 << 9,
             timer_trigger_bit: false,
+            timer_overflow_scheduled: false,
             timer: 0,
             modulo: 0,
             control: 0xF8,  // Only lowest 3 bits are used, rest is 1.
@@ -29,24 +31,16 @@ impl Timer {
         if self.stopped {
             return false;
         }
-        if self.timer_trigger == 1 << 3 {
-            // The timer could increment multiple times when processing a slow
-            // instructions.
-            let mut interrupt = false;
-            let mut cycles = cycles;
-            // TODO: It might be faster to update the clock in increments
-            //       of 8 and handle the case of cycles not divisible by 8
-            //       with one increment of 4.
-            while cycles > 0 {
-                cycles -= 4;
-                self.clock = self.clock.wrapping_add(4);
-                interrupt |= self.update_timer();
-            }
-            interrupt
-        } else {
-            self.clock = self.clock.wrapping_add(cycles as u16);
-            self.update_timer()
+        // The timer could increment multiple times when processing a slow
+        // instructions.
+        let mut interrupt = false;
+        let mut cycles = cycles;
+        while cycles > 0 {
+            cycles -= 4;
+            self.clock = self.clock.wrapping_add(4);
+            interrupt |= self.update_timer();
         }
+        interrupt
     }
 
     fn update_timer(&mut self) -> bool {
@@ -58,13 +52,20 @@ impl Timer {
         let interrupt = if self.timer_trigger_bit && !new_timer_trigger_bit {
             let (new_timer, overflow) = self.timer.overflowing_add(1);
             let mut interrupt = false;
-            self.timer = if !overflow {
-                new_timer
-            } else {
+            self.timer = new_timer;
+            if self.timer_overflow_scheduled {
+                self.timer_overflow_scheduled = false;
                 interrupt = true;
-                self.modulo
+                self.timer = self.modulo;
+            }
+            if overflow {
+                self.timer_overflow_scheduled = true;
             };
             interrupt
+        } else if self.timer_overflow_scheduled {
+            self.timer_overflow_scheduled = false;
+            self.timer = self.modulo;
+            true
         } else {
             false
         };
@@ -72,9 +73,9 @@ impl Timer {
         interrupt
     }
 
-    pub fn stop_clock(&mut self) {
+    pub fn stop_clock(&mut self) -> bool {
         self.stopped = true;
-        self.reset_divider();
+        self.reset_divider()
     }
 
     pub fn start_clock(&mut self) {
@@ -85,17 +86,20 @@ impl Timer {
         (self.clock >> 8) as u8
     }
 
-    pub fn reset_divider(&mut self) {
+    pub fn reset_divider(&mut self) -> bool {
         self.clock = 0;
         self.timer_counter = 0;
+        self.update_timer()
     }
 
     pub fn get_timer(&self) -> u8 {
         self.timer
     }
 
-    pub fn set_timer(&mut self, value: u8) {
+    pub fn set_timer(&mut self, value: u8) -> bool {
         self.timer = value;
+        // TODO: This doesn't look like it requires update_timer.
+        self.update_timer()
     }
 
     pub fn get_modulo(&self) -> u8 {
@@ -110,13 +114,11 @@ impl Timer {
         self.control
     }
 
-    pub fn set_control(&mut self, value: u8) {
+    pub fn set_control(&mut self, value: u8) -> bool {
         // The unused bits 3–7 are always 1.
         self.control = value | 0xF8;
         self.timer_trigger = self.get_timer_trigger_bit();
-        // TODO: this makes Mooneye's timer/rapid_toggle.gb fail.
-        // self.update_timer();
-        // TODO: Trigger timer interrupt.
+        self.update_timer()
     }
 
     fn is_timer_enabled(&self) -> bool {
