@@ -126,8 +126,13 @@ impl MemoryBus {
                 // FF43 - SCX (Scroll X) (R/W)
                 // FF44 - LY (LCDC Y-Coordinate) (R)
                 // FF45 - LYC (LY Compare) (R/W)
+                // FF46 - Object Attribute Memory (OAM) DMA Control Register
                 // FF4A - WY (Window Y Position) (R/W)
                 // FF4B - WX (Window X Position + 7) (R/W)
+                if 0xFF47 <= address && address <= 0xFF49 {
+                    unimplemented!("reading from {:0>4X} not implemented, yet.",
+                                   address);
+                }
                 self.memory[address as usize]
             }
             0xFF4C..=0xFF7F => { // I/O Registers
@@ -232,6 +237,7 @@ impl MemoryBus {
                         //       Normally it would take 160 cycles during which
                         //       the CPU continues execution but only has
                         //       access to HRAM.
+                        self.memory[address as usize] = value;
                         eprintln!("OAM transfer from {0:0>2X}00–{0:0>2X}9F.",
                                   value);
                         let source_start = (value as u16) << 8;
