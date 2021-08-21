@@ -1,5 +1,7 @@
 use minifb::{Key, Window, WindowOptions};
 
+use super::io::{IO, HEIGHT, WIDTH};
+
 /// A 160x144 pixel display with 4 shades of gray
 pub struct EmulatorWindow {
     display_buffer: Vec<u32>,
@@ -7,13 +9,11 @@ pub struct EmulatorWindow {
 }
 
 const PIXEL_SIZE: usize = 4;
-pub const WIDTH: usize = 160;
-pub const HEIGHT: usize = 144;
 
 const COLORS: [u32; 4] = [0xFFFFFF, 0x808080, 0x404040, 0];
 
-impl EmulatorWindow {
-    pub fn new() -> Self {
+impl Default for EmulatorWindow {
+    fn default() -> Self {
         let window = Window::new(
             "Game Boy emulator",
             WIDTH * PIXEL_SIZE,
@@ -25,8 +25,10 @@ impl EmulatorWindow {
             window,
         }
     }
+}
 
-    pub fn refresh(&mut self, pixels: &[u8]) {
+impl IO for EmulatorWindow {
+    fn refresh(&mut self, pixels: &[u8]) {
         let buffer_width = WIDTH * PIXEL_SIZE;
         for line in 0..HEIGHT {
             let buffer_line_start = line * PIXEL_SIZE * buffer_width;
@@ -51,7 +53,7 @@ impl EmulatorWindow {
             .unwrap();
     }
 
-    pub fn is_esc_pressed(&self) -> bool {
+    fn is_esc_pressed(&self) -> bool {
         self.window.is_key_down(Key::Escape)
     }
 
@@ -73,7 +75,7 @@ impl EmulatorWindow {
     /// 5    B
     /// 6    Select
     /// 7    Start
-    pub fn get_key_presses(&self) -> u8 {
+    fn get_key_presses(&self) -> u8 {
         let mut presses = 0x00;
         if self.window.is_key_down(Key::Right) {
             presses |= 0x01;

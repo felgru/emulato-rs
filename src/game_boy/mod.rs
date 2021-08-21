@@ -5,11 +5,11 @@ pub mod cpu;
 pub mod display;
 pub mod emulator_window;
 pub mod graphics_data;
+pub mod io;
 pub mod memory;
 pub mod ppu;
 pub mod timer;
 
-use std::io;
 use std::fs::File;
 use std::time::Instant;
 use std::thread::sleep;
@@ -20,25 +20,27 @@ const CPU_CYCLES_PER_SECOND: usize = 4_194_304;
 const CPU_CYCLES_PER_FRAME:  usize = CPU_CYCLES_PER_SECOND / FRAMERATE;
 const CPU_CYCLES_PER_SCANLINE: usize = CPU_CYCLES_PER_FRAME / 154;
 
-pub struct GameBoy {
+pub struct GameBoy<Window: io::IO> {
     cpu: cpu::CPU,
     ppu: ppu::PPU,
     memory: memory::MemoryBus,
-    emulator_window: emulator_window::EmulatorWindow,
+    emulator_window: Window,
 }
 
-impl GameBoy {
-    pub fn builder() -> GameBoyBuilder {
+impl<Window: io::IO> GameBoy<Window> {
+    pub fn builder() -> GameBoyBuilder<Window> {
         GameBoyBuilder::new()
     }
 
-    pub fn new(boot_rom: [u8;0x100], cartridge: cartridge::Cartridge) -> Self {
+    pub fn new(boot_rom: [u8;0x100],
+               cartridge: cartridge::Cartridge,
+               window: Window) -> Self {
         let memory = memory::MemoryBus::new(cartridge, boot_rom);
         Self {
             cpu: cpu::CPU::new(),
             ppu: ppu::PPU::new(),
             memory,
-            emulator_window: emulator_window::EmulatorWindow::new(),
+            emulator_window: window,
         }
     }
 
@@ -124,24 +126,28 @@ impl GameBoy {
     }
 }
 
-pub struct GameBoyBuilder {
+pub struct GameBoyBuilder<Window: io::IO> {
     boot_rom: Option<[u8;0x100]>,
     cartridge: Option<cartridge::Cartridge>,
+    window: Option<Window>,
 }
 
-impl GameBoyBuilder {
+impl<Window: io::IO> GameBoyBuilder<Window> {
     pub fn new() -> Self {
         Self {
             boot_rom: None,
             cartridge: None,
+            window: None,
         }
     }
 
-    pub fn build(self) -> GameBoy {
-        GameBoy::new(self.boot_rom.unwrap(), self.cartridge.unwrap())
+    pub fn build(self) -> GameBoy<Window> {
+        GameBoy::new(self.boot_rom.unwrap(),
+                     self.cartridge.unwrap(),
+                     self.window.unwrap())
     }
 
-    pub fn load_boot_rom(mut self, file: File) -> io::Result<Self> {
+    pub fn load_boot_rom(mut self, file: File) -> std::io::Result<Self> {
         let boot_rom = boot_rom::load_boot_rom(file)?;
         self.boot_rom = Some(boot_rom);
         Ok(self)
@@ -153,8 +159,13 @@ impl GameBoyBuilder {
         self
     }
 
-    pub fn load_cartridge(mut self, file: File) -> io::Result<Self> {
+    pub fn load_cartridge(mut self, file: File) -> std::io::Result<Self> {
         self.cartridge = Some(cartridge::Cartridge::load_from_file(file)?);
         Ok(self)
+    }
+
+    pub fn use_emulator_window(mut self, window: Window) -> Self {
+        self.window = Some(window);
+        self
     }
 }
