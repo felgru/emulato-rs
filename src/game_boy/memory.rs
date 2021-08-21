@@ -257,6 +257,12 @@ impl MemoryBus {
                         self.memory[address as usize] = value;
                         eprintln!("OAM transfer from {0:0>2X}00–{0:0>2X}9F.",
                                   value);
+                        // ECHO RAM, DMA, etc. remap to WRAM.
+                        let value = if value >= 0xE0 {
+                            value - 0xE0 + 0xC0
+                        } else {
+                            value
+                        };
                         let source_start = (value as u16) << 8;
                         for (source, target)
                             in (source_start..=source_start+0x9F)
