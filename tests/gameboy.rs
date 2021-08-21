@@ -629,3 +629,183 @@ fn mooneye_mbc1_rom_16mb() {
         .build();
     gameboy.run();
 }
+
+#[test]
+fn mooneye_mbc2_bits_ramg() {
+    let f = mooneye_test_rom("/emulator-only/mbc2/bits_ramg.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc2_bits_romb() {
+    let f = mooneye_test_rom("/emulator-only/mbc2/bits_romb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc2_bits_unused() {
+    let f = mooneye_test_rom("/emulator-only/mbc2/bits_unused.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc2_ram() {
+    let f = mooneye_test_rom("/emulator-only/mbc2/ram.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc2_rom_512kb() {
+    let f = mooneye_test_rom("/emulator-only/mbc2/rom_512kb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc2_rom_1mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc2/rom_1Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc2_rom_2mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc2/rom_2Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc5_rom_512kb() {
+    let f = mooneye_test_rom("/emulator-only/mbc5/rom_512kb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc5_rom_1mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc5/rom_1Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc5_rom_2mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc5/rom_2Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc5_rom_4mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc5/rom_4Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc5_rom_8mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc5/rom_8Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc5_rom_16mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc5/rom_16Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc5_rom_32mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc5/rom_32Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
+
+#[test]
+fn mooneye_mbc5_rom_64mb() {
+    let f = mooneye_test_rom("/emulator-only/mbc5/rom_64Mb.gb").unwrap();
+    let window = TestEmulatorWindow::with_reference(TEST_OK);
+    let mut gameboy = game_boy::GameBoy::<TestEmulatorWindow>::builder()
+        .use_emulator_window(window)
+        .use_fast_boot_rom()
+        .load_cartridge(f).unwrap()
+        .build();
+    gameboy.run();
+}
