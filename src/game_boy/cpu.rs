@@ -931,7 +931,12 @@ impl CPU {
     }
 
     fn push(&mut self, memory: &mut MemoryBus, value: u16) {
-        self.sp -= 2;
+        let (new_sp, overflow) = self.sp.overflowing_sub(2);
+        if overflow {
+            eprintln!("SP {:0>4X} has underflown to {:0>4X} during PUSH.",
+                      self.sp, new_sp);
+        }
+        self.sp = new_sp;
         memory.write16(self.sp, value);
     }
 
