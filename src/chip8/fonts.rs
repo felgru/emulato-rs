@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Felix Gruber
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 pub const CHIP48_FONT: [u8; 16 * 5] = [
     // 0
     0xF0, 0x90, 0x90, 0x90, 0xF0,

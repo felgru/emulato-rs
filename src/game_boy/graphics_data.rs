@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Felix Gruber
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 /// A monochrome palette
 ///
 /// Bit 7-6 - Color for index 3

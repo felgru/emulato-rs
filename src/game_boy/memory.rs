@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Felix Gruber
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use super::cartridge::Cartridge;
 use super::graphics_data::MonochromePalette;
 use super::ppu::LcdMode;

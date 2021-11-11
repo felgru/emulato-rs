@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Felix Gruber
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use clap::{crate_name, crate_version, App, AppSettings};
 
 use emulato_rs::chip8;

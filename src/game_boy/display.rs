@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Felix Gruber
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use super::io::{IO, HEIGHT, WIDTH};
 
 /// A 160x144 pixel display with 4 shades of gray

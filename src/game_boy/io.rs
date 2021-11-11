@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Felix Gruber
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 pub const WIDTH: usize = 160;
 pub const HEIGHT: usize = 144;
 
