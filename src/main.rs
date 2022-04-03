@@ -1,17 +1,18 @@
-// SPDX-FileCopyrightText: 2021 Felix Gruber
+// SPDX-FileCopyrightText: 2021–2022 Felix Gruber
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use clap::{crate_name, crate_version, App, AppSettings};
+use clap::{crate_name, crate_version, Command};
 
 use emulato_rs::chip8;
 use emulato_rs::game_boy;
 
 fn main() {
-    let matches = App::new(crate_name!())
+    let matches = Command::new(crate_name!())
         .about("A collection of emulators.")
         .version(crate_version!())
-        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .subcommand_required(true)
+        .arg_required_else_help(true)
         .subcommand(chip8::commandline::chip_8_subcommand())
         .subcommand(game_boy::commandline::game_boy_subcommand())
         .get_matches();

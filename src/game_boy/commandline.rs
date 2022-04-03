@@ -1,33 +1,33 @@
-// SPDX-FileCopyrightText: 2021 Felix Gruber
+// SPDX-FileCopyrightText: 2021–2022 Felix Gruber
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::fs::File;
 
-use clap::{App, Arg, ArgMatches};
+use clap::{Arg, ArgMatches, Command};
 
 use super::cartridge::CartridgeHeader;
 use super::emulator_window::EmulatorWindow;
 use super::GameBoy;
 
-pub fn game_boy_subcommand<'a>() -> App<'a> {
-    App::new("gameboy")
+pub fn game_boy_subcommand<'a>() -> Command<'a> {
+    Command::new("gameboy")
     .about("A Game Boy emulator")
     .arg(
         Arg::new("cartridge-file")
-            .about("a ROM file to load into the emulator")
+            .help("a ROM file to load into the emulator")
             .index(1)
             .required(true),
     )
     .arg(
         Arg::new("boot-rom")
-            .about("path to boot ROM")
+            .help("path to boot ROM")
             .takes_value(true)
             .long("boot-rom")
     )
     .arg(
         Arg::new("dump-header")
-            .about("print cartridge header")
+            .help("print cartridge header")
             .long("dump-header")
     )
 }

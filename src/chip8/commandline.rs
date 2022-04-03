@@ -1,24 +1,24 @@
-// SPDX-FileCopyrightText: 2021 Felix Gruber
+// SPDX-FileCopyrightText: 2021–2022 Felix Gruber
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::fs::File;
 
-use clap::{App, Arg, ArgMatches};
+use clap::{Arg, ArgMatches, Command};
 
-pub fn chip_8_subcommand<'a>() -> App<'a> {
+pub fn chip_8_subcommand<'a>() -> Command<'a> {
     use super::Chip8;
-    App::new("chip8")
+    Command::new("chip8")
     .about("A Chip-8 emulator")
     .arg(
         Arg::new("rom-file")
-            .about("a ROM file to load into the emulator")
+            .help("a ROM file to load into the emulator")
             .index(1)
             .required(true),
     )
     .arg(
         Arg::new("display")
-            .about("display dimensions")
+            .help("display dimensions")
             .takes_value(true)
             .long("display")
             .default_value("64x32")
@@ -26,7 +26,7 @@ pub fn chip_8_subcommand<'a>() -> App<'a> {
     )
     .arg(
         Arg::new("font")
-            .about("font")
+            .help("font")
             .takes_value(true)
             .long("font")
             .default_value("chip48")
@@ -34,7 +34,7 @@ pub fn chip_8_subcommand<'a>() -> App<'a> {
     )
     .arg(
         Arg::new("shift-x")
-            .about("shift VX instead of VY in 8XY6 and 8XYE (this is what S-CHIP and many other emulators do")
+            .help("shift VX instead of VY in 8XY6 and 8XYE (this is what S-CHIP and many other emulators do")
             .long("shift-x")
     )
 }
