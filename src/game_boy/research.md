@@ -34,6 +34,10 @@
 * https://kemenaran.winosx.com/posts/links-awakening-rendering-the-opening-cutscene
 * http://catskull.net/GB-Logo-Generator/
 
+# Sound
+
+* https://github.com/bwhitman/pushpin/blob/master/src/gbsound.txt
+
 # ROMs
 
 ## Boot ROM
