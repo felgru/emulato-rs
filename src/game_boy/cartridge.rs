@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Felix Gruber
+// SPDX-FileCopyrightText: 2021, 2023 Felix Gruber
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -220,7 +220,7 @@ impl MemoryController {
     fn register_write8(&mut self, address: u16, value: u8) {
         use MemoryController::*;
         match self {
-            NoController => unimplemented!(
+            NoController => eprintln!(
                 "Writing {:0>2X} to {:0>4X} without memory controller.",
                 value, address),
             MBC1(mbc1) => mbc1.register_write8(address, value),
