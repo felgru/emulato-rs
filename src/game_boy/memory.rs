@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Felix Gruber
+// SPDX-FileCopyrightText: 2021, 2023 Felix Gruber
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -498,8 +498,8 @@ impl Memory {
             0xFFFF => { // IE Register
                 // TODO: should I mask value with 0x1F? Only bits 0–4 are used.
                 if value & 0x08 != 0 {
-                    unimplemented!(
-                        "Writing {:0>2X} to IE register not implemented.",
+                    eprintln!(
+                        "Writing {:0>2X} > 08 to IE register.",
                         value);
                 }
                 self.memory[address as usize] = value;
