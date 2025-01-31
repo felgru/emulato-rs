@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021–2022 Felix Gruber
+// SPDX-FileCopyrightText: 2021–2022, 2025 Felix Gruber
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -10,7 +10,7 @@ use super::cartridge::CartridgeHeader;
 use super::emulator_window::EmulatorWindow;
 use super::GameBoy;
 
-pub fn game_boy_subcommand<'a>() -> Command<'a> {
+pub fn game_boy_subcommand() -> Command {
     Command::new("gameboy")
     .about("A Game Boy emulator")
     .arg(
@@ -22,7 +22,7 @@ pub fn game_boy_subcommand<'a>() -> Command<'a> {
     .arg(
         Arg::new("boot-rom")
             .help("path to boot ROM")
-            .takes_value(true)
+            .num_args(1)
             .long("boot-rom")
     )
     .arg(
@@ -34,16 +34,16 @@ pub fn game_boy_subcommand<'a>() -> Command<'a> {
 
 pub fn run_game_boy_from_subcommand(subcommand: &ArgMatches) {
     let mut builder = GameBoy::<EmulatorWindow>::builder();
-    let filename = subcommand.value_of("cartridge-file").unwrap();
+    let filename: &String = subcommand.get_one("cartridge-file").unwrap();
     let f = File::open(filename).unwrap();
     builder = builder.load_cartridge(f).unwrap();
-    if let Some(boot_rom) = subcommand.value_of("boot-rom") {
+    if let Some(boot_rom) = subcommand.get_one::<&String>("boot-rom") {
         let f = File::open(boot_rom).unwrap();
         builder = builder.load_boot_rom(f).unwrap();
     } else {
         builder = builder.use_fast_boot_rom();
     }
-    if subcommand.is_present("dump-header") {
+    if subcommand.contains_id("dump-header") {
         print_cartridge_header(builder.get_cartridge_header().unwrap())
     } else {
         let mut game_boy

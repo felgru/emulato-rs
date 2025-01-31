@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 Felix Gruber
+// SPDX-FileCopyrightText: 2021, 2025 Felix Gruber
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -31,10 +31,7 @@ impl Display {
             height * PIXEL_SIZE,
             WindowOptions::default(),
         ).unwrap();
-        use std::time::Duration;
-        let wait_time = Duration::from_micros((1000000. / refresh_rate as f64)
-                                              as u64);
-        window.limit_update_rate(Some(wait_time));
+        window.set_target_fps(refresh_rate);
         Self{
             pixels: vec![false; width * height],
             display_buffer: vec![UNSET; width * height

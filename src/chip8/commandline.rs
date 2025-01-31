@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021–2022 Felix Gruber
+// SPDX-FileCopyrightText: 2021–2022, 2025 Felix Gruber
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -6,7 +6,7 @@ use std::fs::File;
 
 use clap::{Arg, ArgMatches, Command};
 
-pub fn chip_8_subcommand<'a>() -> Command<'a> {
+pub fn chip_8_subcommand() -> Command {
     use super::Chip8;
     Command::new("chip8")
     .about("A Chip-8 emulator")
@@ -19,18 +19,18 @@ pub fn chip_8_subcommand<'a>() -> Command<'a> {
     .arg(
         Arg::new("display")
             .help("display dimensions")
-            .takes_value(true)
+            .num_args(1)
             .long("display")
             .default_value("64x32")
-            .possible_values(&Chip8::AVAILABLE_DISPLAY_SIZES)
+            .value_parser(Chip8::AVAILABLE_DISPLAY_SIZES)
     )
     .arg(
         Arg::new("font")
             .help("font")
-            .takes_value(true)
+            .num_args(1)
             .long("font")
             .default_value("chip48")
-            .possible_values(&Chip8::AVAILABLE_FONTS)
+            .value_parser(Chip8::AVAILABLE_FONTS)
     )
     .arg(
         Arg::new("shift-x")
@@ -40,11 +40,11 @@ pub fn chip_8_subcommand<'a>() -> Command<'a> {
 }
 
 pub fn run_chip_8_from_subcommand(subcommand: &ArgMatches) {
-    let display = subcommand.value_of("display").unwrap();
-    let font = subcommand.value_of("font").unwrap();
-    let shift_x = subcommand.is_present("shift-x");
+    let display: &String = subcommand.get_one("display").unwrap();
+    let font: &String = subcommand.get_one("font").unwrap();
+    let shift_x = subcommand.contains_id("shift-x");
     let mut chip8 = super::Chip8::new(display, font, shift_x);
-    let filename = subcommand.value_of("rom-file").unwrap();
+    let filename: &String = subcommand.get_one("rom-file").unwrap();
     println!("loading {}", filename);
     let f = File::open(filename).unwrap();
     chip8.load_rom(f).unwrap();
