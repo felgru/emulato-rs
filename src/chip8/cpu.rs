@@ -191,7 +191,7 @@ impl CPU {
             0xC000 => {
                 let x = ((opcode & 0x0F00) >> 8) as u8;
                 let nn = opcode as u8;
-                self.registers[x] = self.rng.gen::<u8>() & nn;
+                self.registers[x] = self.rng.random::<u8>() & nn;
             }
             0xD000 => {
                 let x = ((opcode & 0x0F00) >> 8) as u8;
